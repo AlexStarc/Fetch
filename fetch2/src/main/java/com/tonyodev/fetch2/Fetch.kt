@@ -16,7 +16,10 @@ import java.util.concurrent.Executors
 import okhttp3.OkHttpClient
 
 
-class Fetch private constructor(var context: Context, var name: String = "", var client: OkHttpClient?) : Disposable {
+class Fetch private constructor(context: Context,
+                                private val name: String = "",
+                                private var client: OkHttpClient?,
+                                var network: Network = Network.ALL) : Disposable {
 
     private val databaseManager: DatabaseManager
     private val downloadManager: DownloadManager
@@ -169,7 +172,6 @@ class Fetch private constructor(var context: Context, var name: String = "", var
 
     fun download(requests: List<Request>) {
         FetchHelper.throwIfDisposed(this)
-        FetchHelper.throwIfRequestListIsNull(requests)
 
         actionProcessor.queueAction(Runnable{
             databaseManager.executeTransaction(object : AbstractTransaction<List<Long>>() {
@@ -195,8 +197,6 @@ class Fetch private constructor(var context: Context, var name: String = "", var
 
     fun download(requests: List<Request>, callback: Callback) {
         FetchHelper.throwIfDisposed(this)
-        FetchHelper.throwIfRequestListIsNull(requests)
-        FetchHelper.throwIfCallbackIsNull(callback)
 
         actionProcessor.queueAction(Runnable{
             databaseManager.executeTransaction(object : AbstractTransaction<Map<Request, Boolean>>() {
@@ -332,13 +332,10 @@ class Fetch private constructor(var context: Context, var name: String = "", var
                     downloadManager.removeAll()
 
                     if (value != null) {
-                        for (requestData in value!!) {
-                            val file = File(requestData.absoluteFilePath)
-
-                            if (file.exists()) {
-                                file.delete()
-                            }
-                        }
+                        value!!
+                                .map { File(it.absoluteFilePath) }
+                                .filter { it.exists() }
+                                .forEach { it.delete() }
                     }
                 }
             })
@@ -429,6 +426,29 @@ class Fetch private constructor(var context: Context, var name: String = "", var
 
                 override fun onExecute(database: Database) {
                     val result = database.queryByStatus(status.value)
+                    postOnMain(Runnable { query.onResult(result) })
+                }
+
+                override fun onPostExecute() {
+
+                }
+            })
+        })
+    }
+
+    fun queryByStatus(statuses: Array<Status>, query: Query<List<RequestData>>) {
+        FetchHelper.throwIfDisposed(this)
+
+        actionProcessor.queueAction(Runnable{
+            databaseManager.executeTransaction(object : Transaction {
+
+                override fun onPreExecute() {
+
+                }
+
+                override fun onExecute(database: Database) {
+                    val values = statuses.map { it -> it.value }
+                    val result = database.queryByStatus(values)
                     postOnMain(Runnable { query.onResult(result) })
                 }
 
@@ -543,9 +563,8 @@ class Fetch private constructor(var context: Context, var name: String = "", var
         }
     }
 
-    override fun toString(): String {
-        return name
-    }
+    override fun toString(): String =
+            "Fetch(name='$name', network=$network, isDisposed=$isDisposed)"
 
     @Synchronized override fun dispose() {
         if (!isDisposed) {
@@ -575,12 +594,12 @@ class Fetch private constructor(var context: Context, var name: String = "", var
             return fetch
         }
 
-        @JvmOverloads fun create(name: String, context: Context, client: OkHttpClient? = null): Fetch {
+        @JvmOverloads fun create(name: String, context: Context, client: OkHttpClient? = null, network: Network = Network.ALL): Fetch {
             if (pool.containsKey(name)) {
                 return pool[name]!!
             }
 
-            val fetch = Fetch(context, name, client)
+            val fetch = Fetch(context, name, client, network)
             pool.put(name, fetch)
             return fetch
         }

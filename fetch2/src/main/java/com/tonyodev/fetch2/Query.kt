@@ -1,5 +1,5 @@
 package com.tonyodev.fetch2
 
-interface Query<T> {
+interface Query<in T> {
     fun onResult(result: T?)
 }

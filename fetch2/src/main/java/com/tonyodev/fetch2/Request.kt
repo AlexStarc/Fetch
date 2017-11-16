@@ -1,15 +1,38 @@
 package com.tonyodev.fetch2
 
+import android.os.Parcel
+import android.os.Parcelable
 import android.support.v4.util.ArrayMap
+import java.util.stream.Collectors
+import java.util.stream.Collectors.toMap
 
-class Request @JvmOverloads constructor(val url: String, val absoluteFilePath: String, headers: MutableMap<String, String>? = null) {
+data class Request @JvmOverloads constructor(val url: String, val absoluteFilePath: String, val headers: MutableMap<String, String> = ArrayMap()) : Parcelable {
 
     val id: Long
-    private val headers: MutableMap<String, String>
     internal var groupId: String
 
+    constructor(parcel: Parcel) : this(
+            parcel.readString(),
+            parcel.readString(),
+            ArrayMap()) {
+        groupId = parcel.readString()
+
+        val keys = ArrayList<String>()
+        val values = ArrayList<String>()
+
+        parcel.readStringList(keys)
+        parcel.readStringList(values)
+
+        if (keys.size != values.size) {
+            throw IllegalStateException("Wrong parcel received for Request")
+        }
+
+        for (i in 0..keys.size) {
+            headers.put(keys[i], values[i])
+        }
+    }
+
     init {
-        var realHeaders = headers
         if (url.isEmpty()) {
             throw IllegalArgumentException("Url cannot be null or empty")
         }
@@ -18,16 +41,8 @@ class Request @JvmOverloads constructor(val url: String, val absoluteFilePath: S
             throw IllegalArgumentException("AbsoluteFilePath cannot be null or empty")
         }
 
-        if (realHeaders == null) {
-            realHeaders = ArrayMap()
-        }
-        this.headers = realHeaders
         this.groupId = ""
         this.id = generateId()
-    }
-
-    fun getHeaders(): Map<String, String> {
-        return headers
     }
 
     fun putHeader(key: String, value: String?) {
@@ -63,5 +78,27 @@ class Request @JvmOverloads constructor(val url: String, val absoluteFilePath: S
 
     override fun toString(): String {
         return "{\"url\":\"$url\",\"absolutePath\":$absoluteFilePath\"}"
+    }
+
+    override fun writeToParcel(parcel: Parcel, flags: Int) {
+        parcel.writeString(url)
+        parcel.writeString(absoluteFilePath)
+        parcel.writeString(groupId)
+        parcel.writeStringList(ArrayList(headers.keys))
+        parcel.writeStringList(ArrayList(headers.values))
+    }
+
+    override fun describeContents(): Int {
+        return 0
+    }
+
+    companion object CREATOR : Parcelable.Creator<Request> {
+        override fun createFromParcel(parcel: Parcel): Request {
+            return Request(parcel)
+        }
+
+        override fun newArray(size: Int): Array<Request?> {
+            return arrayOfNulls(size)
+        }
     }
 }

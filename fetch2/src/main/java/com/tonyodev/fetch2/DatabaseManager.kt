@@ -61,6 +61,16 @@ internal class DatabaseManager private constructor(context: Context, name: Strin
             return list
         }
 
+        override fun queryByStatus(statuses: List<Int>): List<RequestData> {
+            val list = ArrayList<RequestData>()
+
+            val requestInfos = fetchDatabase.requestInfoDao().queryByStatus(statuses.toIntArray())
+
+            requestInfos.mapTo(list) { it.toRequestData() }
+
+            return list
+        }
+
         override fun query(id: Long): RequestData? {
             val requestData: RequestData?
             val requestInfo = fetchDatabase.requestInfoDao().query(id)

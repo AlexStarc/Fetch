@@ -16,6 +16,9 @@ interface RequestInfoDao {
     @Query("SELECT * FROM requestInfos WHERE status = :status")
     fun queryByStatus(status: Int): List<RequestInfo>
 
+    @Query("SELECT * FROM requestInfos WHERE status IN(:statuses)")
+    fun queryByStatus(statuses: IntArray): List<RequestInfo>
+
     @Query("SELECT * FROM requestInfos WHERE groupId = :groupId")
     fun queryByGroupId(groupId: String): List<RequestInfo>
 

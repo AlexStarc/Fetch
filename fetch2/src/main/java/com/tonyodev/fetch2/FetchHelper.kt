@@ -52,7 +52,7 @@ internal object FetchHelper {
         }
     }
 
-    fun throwIfRequestListIsNull(list: List<Request>?) {
+    fun throwIfListIsNull(list: List<*>?) {
 
         if (list == null) {
             throw IllegalArgumentException("List<Request> cannot be null")

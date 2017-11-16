@@ -26,4 +26,13 @@ internal object NetworkUtils {
         val activeNetworkInfo = connectivityManager.activeNetworkInfo
         return activeNetworkInfo != null && activeNetworkInfo.isConnected
     }
+
+    fun isOnWiFi(context: Context): Boolean {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val activeNetworkInfo = connectivityManager.activeNetworkInfo
+
+        return if (activeNetworkInfo != null && activeNetworkInfo.isConnected) {
+                    activeNetworkInfo.type == ConnectivityManager.TYPE_WIFI
+               } else false
+    }
 }

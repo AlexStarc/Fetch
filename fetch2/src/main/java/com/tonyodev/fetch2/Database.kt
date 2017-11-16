@@ -9,6 +9,7 @@ internal interface Database {
     operator fun contains(id: Long): Boolean
     fun insert(id: Long, url: String, absoluteFilePath: String, groupId: String): Boolean
     fun queryByStatus(status: Int): List<RequestData>
+    fun queryByStatus(statuses: List<Int>): List<RequestData>
     fun query(id: Long): RequestData?
     fun query(): List<RequestData>
     fun query(ids: LongArray): List<RequestData>

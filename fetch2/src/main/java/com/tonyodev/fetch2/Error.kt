@@ -1,6 +1,6 @@
 package com.tonyodev.fetch2
 
-enum class Error private constructor(val value: Int) {
+enum class Error(val value: Int) {
 
     UNKNOWN(-1),
     NONE(0),
