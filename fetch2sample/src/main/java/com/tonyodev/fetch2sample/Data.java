@@ -25,7 +25,7 @@ public final class Data {
     private Data() {
     }
 
-    static List<Request> getFetchRequests() {
+    public static List<Request> getFetchRequests() {
 
         List<Request> requests = new ArrayList<>();
 

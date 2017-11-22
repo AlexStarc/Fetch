@@ -36,9 +36,9 @@ class DatabaseConverters {
     @TypeConverter
     fun headerListToString(headerMap: Map<String, String>): String {
 
-        var headerString: String
+        val headerString: String
 
-        try {
+        headerString = try {
 
             val headerObject = JSONObject()
 
@@ -46,9 +46,9 @@ class DatabaseConverters {
                 headerObject.put(key, headerMap[key])
             }
 
-            headerString = headerObject.toString()
+            headerObject.toString()
         } catch (e: JSONException) {
-            headerString = "{}"
+            "{}"
         }
 
         return headerString

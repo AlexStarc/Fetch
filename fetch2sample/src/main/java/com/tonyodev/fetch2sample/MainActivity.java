@@ -10,6 +10,11 @@ import android.support.v7.app.AppCompatActivity;
 import android.view.View;
 import android.widget.Toast;
 
+import com.tonyodev.fetch2sample.service.ServiceDownloadListActivity;
+import com.tonyodev.fetch2sample.service.ServiceGameFilesActivity;
+import com.tonyodev.fetch2sample.service.ServiceMultiEnqueueActivity;
+import com.tonyodev.fetch2sample.service.ServiceSingleDownloadActivity;
+
 public class MainActivity extends AppCompatActivity {
 
     private static final int STORAGE_PERMISSION_CODE = 50;
@@ -29,7 +34,16 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
 
-                Intent intent = new Intent(MainActivity.this,SingleDownloadActivity.class);
+                Intent intent = new Intent(MainActivity.this, SingleDownloadActivity.class);
+                MainActivity.this.startActivity(intent);
+            }
+        });
+
+        findViewById(R.id.serviceSingleDemoButton).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                Intent intent = new Intent(MainActivity.this, ServiceSingleDownloadActivity.class);
                 MainActivity.this.startActivity(intent);
             }
         });
@@ -43,6 +57,15 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        findViewById(R.id.serviceDownloadListButton).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                Intent intent = new Intent(MainActivity.this, ServiceDownloadListActivity.class);
+                MainActivity.this.startActivity(intent);
+            }
+        });
+
         findViewById(R.id.gameFilesButton).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -52,11 +75,29 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        findViewById(R.id.serviceGameFilesButton).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                Intent intent = new Intent(MainActivity.this, ServiceGameFilesActivity.class);
+                MainActivity.this.startActivity(intent);
+            }
+        });
+
         findViewById(R.id.multiEnqueueButton).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
 
                 Intent intent = new Intent(MainActivity.this,MultiEnqueueActivity.class);
+                MainActivity.this.startActivity(intent);
+            }
+        });
+
+        findViewById(R.id.serviceMultiEnqueueButton).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                Intent intent = new Intent(MainActivity.this, ServiceMultiEnqueueActivity.class);
                 MainActivity.this.startActivity(intent);
             }
         });
@@ -79,7 +120,7 @@ public class MainActivity extends AppCompatActivity {
                 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
 
             //DO NOTHING STORAGE PERMISSION GRANTED
-        }else {
+        } else {
             Toast.makeText(this, R.string.permission_not_enabled,Toast.LENGTH_LONG).show();
         }
     }

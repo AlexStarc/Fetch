@@ -18,8 +18,7 @@ import okhttp3.OkHttpClient
 
 class Fetch private constructor(context: Context,
                                 private val name: String = "",
-                                private var client: OkHttpClient?,
-                                var network: Network = Network.ALL) : Disposable {
+                                private var client: OkHttpClient?) : Disposable {
 
     private val databaseManager: DatabaseManager
     private val downloadManager: DownloadManager
@@ -127,7 +126,7 @@ class Fetch private constructor(context: Context,
                 override fun onPreExecute() {}
 
                 override fun onExecute(database: Database) {
-                    val inserted = database.insert(request.id, request.url, request.absoluteFilePath, request.groupId)
+                    val inserted = database.insert(request.id, request.url, request.absoluteFilePath, request.name, request.groupId)
                     value = inserted
                 }
 
@@ -152,7 +151,7 @@ class Fetch private constructor(context: Context,
 
                 override fun onExecute(database: Database) {
 
-                    val inserted = database.insert(request.id, request.url, request.absoluteFilePath, request.groupId)
+                    val inserted = database.insert(request.id, request.url, request.absoluteFilePath, request.name, request.groupId)
                     value = inserted
                 }
 
@@ -180,7 +179,7 @@ class Fetch private constructor(context: Context,
                 override fun onExecute(database: Database) {
 
                     val ids = requests
-                            .filter { database.insert(it.id, it.url, it.absoluteFilePath, it.groupId) }
+                            .filter { database.insert(it.id, it.url, it.absoluteFilePath, it.name, it.groupId) }
                             .map { it.id }
 
                     value = ids
@@ -209,7 +208,7 @@ class Fetch private constructor(context: Context,
                     val map = ArrayMap<Request, Boolean>()
 
                     for (request in requests) {
-                        val inserted = database.insert(request.id, request.url, request.absoluteFilePath, request.groupId)
+                        val inserted = database.insert(request.id, request.url, request.absoluteFilePath, request.name, request.groupId)
                         map.put(request, inserted)
                     }
                     value = map
@@ -288,6 +287,7 @@ class Fetch private constructor(context: Context,
         actionProcessor.queueAction(Runnable{ downloadManager.removeAll() })
     }
 
+    @Suppress("unused")
     fun delete(id: Long) {
         FetchHelper.throwIfDisposed(this)
         actionProcessor.queueAction(Runnable{
@@ -412,6 +412,7 @@ class Fetch private constructor(context: Context,
         })
     }
 
+    @Suppress("unused")
     fun queryByStatus(status: Status, query: Query<List<RequestData>>) {
         FetchHelper.throwIfDisposed(this)
         FetchHelper.throwIfQueryIsNull(query)
@@ -459,6 +460,7 @@ class Fetch private constructor(context: Context,
         })
     }
 
+    @Suppress("unused")
     fun queryByGroupId(groupId: String, query: Query<List<RequestData>>) {
         FetchHelper.throwIfDisposed(this)
         FetchHelper.throwIfQueryIsNull(query)
@@ -482,6 +484,7 @@ class Fetch private constructor(context: Context,
         })
     }
 
+    @Suppress("unused")
     fun queryContains(id: Long, query: Query<Boolean>) {
         FetchHelper.throwIfDisposed(this)
         FetchHelper.throwIfQueryIsNull(query)
@@ -564,7 +567,7 @@ class Fetch private constructor(context: Context,
     }
 
     override fun toString(): String =
-            "Fetch(name='$name', network=$network, isDisposed=$isDisposed)"
+            "Fetch(name='$name', isDisposed=$isDisposed)"
 
     @Synchronized override fun dispose() {
         if (!isDisposed) {
@@ -594,12 +597,12 @@ class Fetch private constructor(context: Context,
             return fetch
         }
 
-        @JvmOverloads fun create(name: String, context: Context, client: OkHttpClient? = null, network: Network = Network.ALL): Fetch {
+        @JvmOverloads fun create(name: String, context: Context, client: OkHttpClient? = null): Fetch {
             if (pool.containsKey(name)) {
                 return pool[name]!!
             }
 
-            val fetch = Fetch(context, name, client, network)
+            val fetch = Fetch(context, name, client)
             pool.put(name, fetch)
             return fetch
         }

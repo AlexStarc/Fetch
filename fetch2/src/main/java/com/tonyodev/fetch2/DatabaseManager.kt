@@ -40,12 +40,12 @@ internal class DatabaseManager private constructor(context: Context, name: Strin
             return false
         }
 
-        override fun insert(id: Long, url: String, absoluteFilePath: String, groupId: String): Boolean {
+        override fun insert(id: Long, url: String, absoluteFilePath: String, name: String, groupId: String): Boolean {
             if (contains(id)) {
                 return false
             }
 
-            val requestInfo = RequestInfo.newInstance(id, url, absoluteFilePath, groupId)
+            val requestInfo = RequestInfo.newInstance(id, url, absoluteFilePath, name, groupId)
             val inserted = fetchDatabase.requestInfoDao().insert(requestInfo)
 
             return inserted != -1L

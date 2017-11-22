@@ -7,7 +7,7 @@ package com.tonyodev.fetch2
 internal interface Database {
 
     operator fun contains(id: Long): Boolean
-    fun insert(id: Long, url: String, absoluteFilePath: String, groupId: String): Boolean
+    fun insert(id: Long, url: String, absoluteFilePath: String, name: String, groupId: String): Boolean
     fun queryByStatus(status: Int): List<RequestData>
     fun queryByStatus(statuses: List<Int>): List<RequestData>
     fun query(id: Long): RequestData?
