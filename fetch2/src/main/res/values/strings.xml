@@ -1,7 +1,8 @@
 <resources>
-    <string name="app_name">fetch2</string>
     <string name="channel_description">Download service notifications</string>
     <string name="notification_downloading">Downloading…</string>
     <string name="notification_finish_downloading">Finishing download…</string>
     <string name="notification_downloading_count">Downloading %d items</string>
+
+    <string name="app_name">Fetch2</string>
 </resources>

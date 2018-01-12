@@ -1,25 +1,55 @@
 package com.tonyodev.fetch2
 
-enum class Status private constructor(val value: Int) {
-    ERROR(-1), CANCELLED(0), QUEUED(1), DOWNLOADING(2), PAUSED(3), COMPLETED(4), REMOVED(5), INVALID(6);
+/**
+ * Enumeration which contains the different states a download
+ * could go through.
+ * */
+enum class Status constructor(val value: Int) {
 
-    override fun toString(): String {
-        return "Status: " + value
-    }
+    /** Indicates when a download is newly created and not yet queued.*/
+    NONE(0),
+
+    /** Indicates when a newly created download is queued.*/
+    QUEUED(1),
+
+    /** Indicates when a download is currently being downloaded.*/
+    DOWNLOADING(2),
+
+    /** Indicates when a download is paused.*/
+    PAUSED(3),
+
+    /** Indicates when a download is completed.*/
+    COMPLETED(4),
+
+    /** Indicates when a download is cancelled.*/
+    CANCELLED(5),
+
+    /** Indicates when a download has failed.*/
+    FAILED(6),
+
+    /** Indicates when a download has been removed and is no longer managed by Fetch.*/
+    REMOVED(7),
+
+    /** Indicates when a download has been deleted and is no longer managed by Fetch.*/
+    DELETED(8);
 
     companion object {
 
-        fun valueOf(status: Int): Status {
-            when (status) {
-                -1 -> return ERROR
-                0 -> return CANCELLED
-                1 -> return QUEUED
-                2 -> return DOWNLOADING
-                3 -> return PAUSED
-                4 -> return COMPLETED
-                5 -> return REMOVED
-                else -> return INVALID
+        @JvmStatic
+        fun valueOf(value: Int): Status {
+            return when (value) {
+                0 -> NONE
+                1 -> QUEUED
+                2 -> DOWNLOADING
+                3 -> PAUSED
+                4 -> COMPLETED
+                5 -> CANCELLED
+                6 -> FAILED
+                7 -> REMOVED
+                8 -> DELETED
+                else -> NONE
             }
         }
+
     }
 }

@@ -1,610 +1,303 @@
 package com.tonyodev.fetch2
 
 import android.content.Context
-import android.os.Handler
-import android.os.Looper
-import android.support.v4.util.ArrayMap
-import android.support.v4.util.ArraySet
+import com.tonyodev.fetch2.exception.FetchException
+import com.tonyodev.fetch2.fetch.FetchBuilder
+import com.tonyodev.fetch2.fetch.FetchImpl
+import com.tonyodev.fetch2.fetch.FetchModulesBuilder
 
-import java.io.File
-import java.lang.ref.WeakReference
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.ConcurrentLinkedQueue
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
+/**
+ * A light weight file download manager for Android.
+ * Features: Background downloading,
+ *           Queue based Priority downloading,
+ *           Pause & Resume downloads,
+ *           Network specific downloading and more...
+ * */
+interface Fetch {
 
-import okhttp3.OkHttpClient
+    /** Returns true if this instance of fetch is closed and cannot be reused.*/
+    val isClosed: Boolean
 
+    /** The namespace which this instance of fetch operates in. An app can
+     * have several instances of Fetch with different namespaces.
+     * @see com.tonyodev.fetch2.Fetch.Builder
+     * */
+    val namespace: String
 
-class Fetch private constructor(context: Context,
-                                private val name: String = "",
-                                private var client: OkHttpClient?) : Disposable {
+    /**
+     * Queues a request for downloading. If Fetch fails to enqueue the request,
+     * func2 will be called with the error message.
+     * Errors that may cause Fetch to fail the enqueue are :
+     * 1. No storage space on the device.
+     * 2. Fetch is already managing the same request. This means that a request with the same url
+     * and file name is already managed.
+     * @param request Download Request
+     * @param func Callback that the enqueued download results will be returned on.
+     * @param func2 Callback that is called when enqueuing a request fails. An error is returned.
+     * @throws FetchException if this instance of Fetch has been closed.
+     * */
+    fun enqueue(request: Request, func: Func<Download>? = null, func2: Func<Error>? = null)
 
-    private val databaseManager: DatabaseManager
-    private val downloadManager: DownloadManager
-    private val mainHandler: Handler
-    private lateinit var executor: ExecutorService
-    private val listeners: MutableSet<WeakReference<FetchListener>>
-    @Volatile override var isDisposed: Boolean = false
-        private set
+    /**
+     * Queues a list of requests for downloading. If Fetch fails to enqueue a
+     * download request because an error occurred, all other request in the list will
+     * fail. Func2 will be called with the error message.
+     * Errors that may cause Fetch to fail the enqueue are :
+     * 1. No storage space on the device.
+     * 2. Fetch is already managing the same request. This means that a request with the same url
+     * and file name is already managed.
+     * @param requests Request List
+     * @param func Callback that the enqueued download results will be returned on.
+     * @param func2 Callback that is called when enqueuing a request fails. An error is returned.
+     * @throws FetchException if this instance of Fetch has been closed.
+     * */
+    fun enqueue(requests: List<Request>, func: Func<List<Download>>? = null, func2: Func<Error>? = null)
 
-    private val actionProcessor = object : ActionProcessor<Runnable> {
+    /** Pause a queued or downloading download.
+     * @param ids ids of downloads to be paused.
+     * @throws FetchException if this instance of Fetch has been closed.
+     * */
+    fun pause(vararg ids: Int)
 
-        private val queue = ConcurrentLinkedQueue<Runnable>()
+    /**
+     * Pause all queued or downloading downloads within the specified group.
+     * @param id specified group id.
+     * @throws FetchException if this instance of Fetch has been closed.
+     * */
+    fun pauseGroup(id: Int)
 
-        @Synchronized override fun queueAction(action: Runnable) {
-            val wasEmpty = queue.isEmpty()
+    /** Pauses all currently downloading items, and pauses all download processing fetch operations.
+     *  Use this method when you do not want Fetch to keep processing downloads
+     *  but do not want to release the instance of Fetch. However, you are still able to query
+     *  download information.
+     *  @see unfreeze
+     * @throws FetchException if this instance of Fetch has been closed.
+     * */
+    fun freeze()
 
-            queue.add(action)
+    /** Resume a download that has been paused.
+     * @param ids ids of downloads to be resumed.
+     * @throws FetchException if this instance of Fetch has been closed.
+     * */
+    fun resume(vararg ids: Int)
 
-            if (wasEmpty) {
-                processNext()
-            }
+    /**
+     * Resume all paused downloads within the specified group.
+     * @param id specified group id.
+     * @throws FetchException if this instance of Fetch has been closed.
+     * */
+    fun resumeGroup(id: Int)
+
+    /** Allow fetch to resume operations after freeze has been called.
+     * @see freeze
+     * @throws FetchException if this instance of Fetch has been closed.
+     * */
+    fun unfreeze()
+
+    /**
+     * Remove a download managed by this instance of Fetch.
+     * The downloaded file for the removed download is not deleted.
+     * @param ids ids of downloads to be removed.
+     * @throws FetchException if this instance of Fetch has been closed.
+     * */
+    fun remove(vararg ids: Int)
+
+    /**
+     * Remove all downloads in the specified group managed by this instance of Fetch.
+     * The downloaded files for removed downloads are not deleted.
+     * @param id specified group id
+     * @throws FetchException if this instance of Fetch has been closed.
+     * */
+    fun removeGroup(id: Int)
+
+    /**
+     * Remove all downloads managed by this instance of Fetch.
+     * The downloaded files for removed downloads are not deleted.
+     * @throws FetchException if this instance of Fetch has been closed.
+     * */
+    fun removeAll()
+
+    /**
+     * Delete a download managed by this instance of Fetch.
+     * The downloaded file is deleted.
+     * @param ids ids of downloads to be deleted.
+     * @throws FetchException if this instance of Fetch has been closed.
+     * */
+    fun delete(vararg ids: Int)
+
+    /**
+     * Deletes all downloads in the specified group managed by this instance of Fetch.
+     * The downloaded files are also deleted.
+     * @param id specified group id
+     * @throws FetchException if this instance of Fetch has been closed.
+     * */
+    fun deleteGroup(id: Int)
+
+    /**
+     * Deletes all downloads managed by this instance of Fetch.
+     * The downloaded files are deleted.
+     * @throws FetchException if this instance of Fetch has been closed.
+     * */
+    fun deleteAll()
+
+    /**
+     * Cancel a non completed download managed by this instance of Fetch.
+     * The downloaded file for the cancelled download is not deleted.
+     * @param ids ids of downloads to be cancelled.
+     * @throws FetchException if this instance of Fetch has been closed.
+     * */
+    fun cancel(vararg ids: Int)
+
+    /**
+     * Cancels all non completed downloads in the specified group managed by this instance of Fetch.
+     * The downloaded files for cancelled downloads are not deleted.
+     * @param id specified group id
+     * @throws FetchException if this instance of Fetch has been closed.
+     * */
+    fun cancelGroup(id: Int)
+
+    /**
+     * Cancels all non completed downloads managed by this instance of Fetch.
+     * The downloaded files for cancelled downloads are not deleted.
+     * @throws FetchException if this instance of Fetch has been closed.
+     * */
+    fun cancelAll()
+
+    /**
+     * Retries to download a failed or cancelled download.
+     * @param ids ids of the failed or cancelled downloads.
+     * @throws FetchException if this instance of Fetch has been closed.
+     * */
+    fun retry(vararg ids: Int)
+
+    /** Updates and replaces an existing download's groupId, headers, priority and network
+     * type information.
+     * @see com.tonyodev.fetch2.RequestInfo for more details.
+     * @param id Id of existing download
+     * @param requestInfo Request Info object
+     * @param func Successful callback that the download will be returned on.
+     * @param func2 Failed callback that the error will be returned on.
+     * @throws FetchException if this instance of Fetch has been closed.
+     * */
+    fun updateRequest(id: Int, requestInfo: RequestInfo, func: Func<Download>? = null,
+                      func2: Func<Error>? = null)
+
+    /**
+     * Gets all downloads managed by this instance of Fetch.
+     * @param func Callback that the results will be returned on.
+     * @throws FetchException if this instance of Fetch has been closed.
+     * */
+    fun getDownloads(func: Func<List<Download>>)
+
+    /**
+     * Gets the downloads which match an id in the list. Only successful matches will be returned.
+     * @param idList Id list to perform id query against.
+     * @param func Callback that the results will be returned on.
+     * @throws FetchException if this instance of Fetch has been closed.
+     * */
+    fun getDownloads(idList: List<Int>, func: Func<List<Download>>)
+
+    /**
+     * Gets the download which has the specified id. If the download
+     * does not exist null will be returned.
+     * @param id Download id
+     * @param func Callback that the results will be returned on. Result maybe null.
+     * @throws FetchException if this instance of Fetch has been closed.
+     * */
+    fun getDownload(id: Int, func: Func2<Download?>)
+
+    /**
+     * Gets all downloads in the specified group.
+     * @param groupId group id to query.
+     * @param func Callback that the results will be returned on.
+     * @throws FetchException if this instance of Fetch has been closed.
+     * */
+    fun getDownloadsInGroup(groupId: Int, func: Func<List<Download>>)
+
+    /**
+     * Gets all downloads with a specific status.
+     * @see com.tonyodev.fetch2.Status
+     * @param status Status to query.
+     * @param func Callback that the results will be returned on.
+     * @throws FetchException if this instance of Fetch has been closed.
+     * */
+    fun getDownloadsWithStatus(status: Status, func: Func<List<Download>>)
+
+    /**
+     * Gets all downloads in a specific group with a specific status.
+     * @see com.tonyodev.fetch2.Status
+     * @param groupId group id to query.
+     * @param status Status to query.
+     * @param func Callback that the results will be returned on.
+     * @throws FetchException if this instance of Fetch has been closed.
+     * */
+    fun getDownloadsInGroupWithStatus(groupId: Int, status: Status, func: Func<List<Download>>)
+
+    /** Attaches a FetchListener to this instance of Fetch.
+     * @param listener Fetch Listener
+     * @throws FetchException if this instance of Fetch has been closed.
+     * */
+    fun addListener(listener: FetchListener)
+
+    /** Detaches a FetchListener from this instance of Fetch.
+     * @param listener Fetch Listener
+     * @throws FetchException if this instance of Fetch has been closed.
+     * */
+    fun removeListener(listener: FetchListener)
+
+    /**
+     * Enable or disable logging.
+     * @param enabled Enable or disable logging.
+     * @throws FetchException if this instance of Fetch has been closed.
+     * */
+    fun enableLogging(enabled: Boolean)
+
+    /**
+     * Overrides each downloads specific network type preference and uses a
+     * global network type preference instead.
+     * Use com.tonyodev.fetch2.NetworkType.GLOBAL_OFF to disable the global network preference.
+     * The default value is com.tonyodev.fetch2.NetworkType.GLOBAL_OFF
+     * @see com.tonyodev.fetch2.NetworkType
+     * @param networkType The global network type.
+     * @throws FetchException if this instance of Fetch has been closed.
+     * */
+    fun setGlobalNetworkType(networkType: NetworkType)
+
+    /** Releases held resources and the namespace used by this Fetch instance.
+     * Once closed this instance cannot be reused but the namespace can be reused
+     * by a new instance of Fetch.
+     * @throws FetchException if this instance of Fetch has been closed.
+     * */
+    fun close()
+
+    /**
+     * Builder used to configure and create an instance of Fetch.
+     * */
+    open class Builder constructor(
+            /** Context*/
+            context: Context,
+
+            /** The namespace which Fetch operates in. Fetch uses
+             * a namespace to create a database that the instance will use. Downloads
+             * enqueued on the instance will belong to the namespace and will not be accessible
+             * from any other namespace. An App can only have one Active Fetch instance with the
+             * specified namespace. * In essence an App can have many instances of fetch
+             * with a different namespaces.
+             * */
+            namespace: String)
+        : FetchBuilder<Builder, Fetch>(context, namespace) {
+
+        /** Builds a new instance of Fetch with the proper configuration.
+         * @throws FetchException if an active instance of Fetch with the same namespace already
+         * exists.
+         * @return New instance of Fetch.
+         * */
+        override fun build(): Fetch {
+            val modules = FetchModulesBuilder.buildModulesFromPrefs(getBuilderPrefs())
+            return FetchImpl.newInstance(modules)
         }
 
-        @Synchronized override fun processNext() {
-            if (!executor.isShutdown && !queue.isEmpty()) {
-                executor.execute(queue.remove())
-            }
-        }
-
-        override fun clearQueue() {
-            queue.clear()
-        }
     }
 
-    private val downloadListener: DownloadListener
-        get() = object : DownloadListener {
-            override fun onComplete(id: Long, progress: Int, downloadedBytes: Long, totalBytes: Long) {
-                postOnMain(Runnable {
-                    listeners
-                            .forEach { it.get()?.onComplete(id, progress, downloadedBytes, totalBytes) }
-                })
-            }
-
-            override fun onError(id: Long, error: Error, progress: Int, downloadedBytes: Long, totalBytes: Long) {
-                postOnMain(Runnable {
-                    listeners
-                            .forEach { it.get()?.onError(id, error, progress, downloadedBytes, totalBytes) }
-                })
-            }
-
-            override fun onProgress(id: Long, progress: Int, downloadedBytes: Long, totalBytes: Long) {
-                postOnMain(Runnable {
-                    listeners
-                            .forEach { it.get()?.onProgress(id, progress, downloadedBytes, totalBytes) }
-                })
-            }
-
-            override fun onPause(id: Long, progress: Int, downloadedBytes: Long, totalBytes: Long) {
-                postOnMain(Runnable {
-                    listeners
-                            .forEach { it.get()?.onPause(id, progress, downloadedBytes, totalBytes) }
-                })
-            }
-
-            override fun onCancelled(id: Long, progress: Int, downloadedBytes: Long, totalBytes: Long) {
-                postOnMain(Runnable {
-                    listeners
-                            .forEach { it.get()?.onCancelled(id, progress, downloadedBytes, totalBytes) }
-                })
-            }
-
-            override fun onRemoved(id: Long, progress: Int, downloadedBytes: Long, totalBytes: Long) {
-                postOnMain(Runnable {
-                    listeners
-                            .forEach { it.get()?.onRemoved(id, progress, downloadedBytes, totalBytes) }
-                })
-            }
-        }
-
-    init {
-        this.isDisposed = false
-        this.listeners = ArraySet()
-        this.mainHandler = Handler(Looper.getMainLooper())
-        this.executor = Executors.newSingleThreadExecutor()
-
-        if (client == null) {
-            client = NetworkUtils.okHttpClient()
-        }
-
-        this.databaseManager = DatabaseManager.newInstance(context.applicationContext, this.name)
-        this.downloadManager = DownloadManager.newInstance(context.applicationContext, databaseManager,
-                client!!, downloadListener, actionProcessor)
-    }
-
-    @Synchronized private fun postOnMain(action: Runnable) {
-        mainHandler.post(action)
-    }
-
-    fun download(request: Request): Fetch {
-        FetchHelper.throwIfDisposed(this)
-        FetchHelper.throwIfRequestIsNull(request)
-
-        actionProcessor.queueAction(Runnable{
-            databaseManager.executeTransaction(object : AbstractTransaction<Boolean>() {
-                override fun onPreExecute() {}
-
-                override fun onExecute(database: Database) {
-                    val inserted = database.insert(request.id, request.url, request.absoluteFilePath, request.name, request.groupId)
-                    value = inserted
-                }
-
-                override fun onPostExecute() {
-                    if (value!!) {
-                        downloadManager.resume(request.id)
-                    }
-                }
-            })
-        })
-        return this
-    }
-
-    fun download(request: Request, callback: Callback) {
-        FetchHelper.throwIfDisposed(this)
-        FetchHelper.throwIfRequestIsNull(request)
-        FetchHelper.throwIfCallbackIsNull(callback)
-
-        actionProcessor.queueAction(Runnable{
-            databaseManager.executeTransaction(object : AbstractTransaction<Boolean>() {
-                override fun onPreExecute() {}
-
-                override fun onExecute(database: Database) {
-
-                    val inserted = database.insert(request.id, request.url, request.absoluteFilePath, request.name, request.groupId)
-                    value = inserted
-                }
-
-                override fun onPostExecute() {
-
-                    if (value!!) {
-                        postOnMain(Runnable { callback.onQueued(request) })
-
-                        downloadManager.resume(request.id)
-                    } else {
-                        postOnMain(Runnable { callback.onFailure(request, Error.UNKNOWN) })
-                    }
-                }
-            })
-        })
-    }
-
-    fun download(requests: List<Request>) {
-        FetchHelper.throwIfDisposed(this)
-
-        actionProcessor.queueAction(Runnable{
-            databaseManager.executeTransaction(object : AbstractTransaction<List<Long>>() {
-                override fun onPreExecute() {}
-
-                override fun onExecute(database: Database) {
-
-                    val ids = requests
-                            .filter { database.insert(it.id, it.url, it.absoluteFilePath, it.name, it.groupId) }
-                            .map { it.id }
-
-                    value = ids
-                }
-
-                override fun onPostExecute() {
-                    for (id in value!!) {
-                        downloadManager.resume(id)
-                    }
-                }
-            })
-        })
-    }
-
-    fun download(requests: List<Request>, callback: Callback) {
-        FetchHelper.throwIfDisposed(this)
-
-        actionProcessor.queueAction(Runnable{
-            databaseManager.executeTransaction(object : AbstractTransaction<Map<Request, Boolean>>() {
-                override fun onPreExecute() {
-
-                }
-
-                override fun onExecute(database: Database) {
-
-                    val map = ArrayMap<Request, Boolean>()
-
-                    for (request in requests) {
-                        val inserted = database.insert(request.id, request.url, request.absoluteFilePath, request.name, request.groupId)
-                        map.put(request, inserted)
-                    }
-                    value = map
-                }
-
-                override fun onPostExecute() {
-
-                    val keys = value!!.keys
-
-                    for (request in keys) {
-                        val obtainedValue = value!![request] ?: false
-
-                        if (obtainedValue) {
-
-                            downloadManager.resume(request.id)
-
-                            postOnMain(Runnable { callback.onQueued(request) })
-
-                        } else {
-                            postOnMain(Runnable { callback.onFailure(request, Error.UNKNOWN) })
-                        }
-                    }
-                }
-            })
-        })
-    }
-
-    fun pause(id: Long) {
-        FetchHelper.throwIfDisposed(this)
-
-        actionProcessor.queueAction(Runnable{ downloadManager.pause(id) })
-    }
-
-    fun pauseAll() {
-        FetchHelper.throwIfDisposed(this)
-        actionProcessor.queueAction(Runnable{ downloadManager.pauseAll() })
-    }
-
-    fun resume(id: Long) {
-        FetchHelper.throwIfDisposed(this)
-
-        actionProcessor.queueAction(Runnable{ downloadManager.resume(id) })
-    }
-
-    fun resumeAll() {
-        FetchHelper.throwIfDisposed(this)
-        actionProcessor.queueAction(Runnable{ downloadManager.resumeAll() })
-    }
-
-    fun retry(id: Long) {
-        FetchHelper.throwIfDisposed(this)
-
-        actionProcessor.queueAction(Runnable{ downloadManager.retry(id) })
-    }
-
-    fun cancel(id: Long) {
-        FetchHelper.throwIfDisposed(this)
-
-
-        actionProcessor.queueAction(Runnable{ downloadManager.cancel(id) })
-    }
-
-    fun cancelAll() {
-        FetchHelper.throwIfDisposed(this)
-        actionProcessor.queueAction(Runnable{ downloadManager.cancelAll() })
-    }
-
-    fun remove(id: Long) {
-        FetchHelper.throwIfDisposed(this)
-
-        actionProcessor.queueAction(Runnable{ downloadManager.remove(id) })
-    }
-
-    fun removeAll() {
-        FetchHelper.throwIfDisposed(this)
-        actionProcessor.queueAction(Runnable{ downloadManager.removeAll() })
-    }
-
-    @Suppress("unused")
-    fun delete(id: Long) {
-        FetchHelper.throwIfDisposed(this)
-        actionProcessor.queueAction(Runnable{
-            databaseManager.executeTransaction(object : AbstractTransaction<RequestData>() {
-                override fun onPreExecute() {}
-
-                override fun onExecute(database: Database) {
-                    val requestData = database.query(id)
-                    value = requestData
-                }
-
-                override fun onPostExecute() {
-                    if (value != null) {
-                        downloadManager.remove(id)
-                        val file = File(value!!.absoluteFilePath)
-
-                        if (file.exists()) {
-                            file.delete()
-                        }
-                    }
-                }
-            })
-        })
-
-    }
-
-    fun deleteAll() {
-        FetchHelper.throwIfDisposed(this)
-        actionProcessor.queueAction(Runnable{
-            databaseManager.executeTransaction(object : AbstractTransaction<List<RequestData>>() {
-
-                override fun onPreExecute() {
-
-                }
-
-                override fun onExecute(database: Database) {
-                    val result = database.query()
-                    value = result
-                }
-
-                override fun onPostExecute() {
-                    downloadManager.removeAll()
-
-                    if (value != null) {
-                        value!!
-                                .map { File(it.absoluteFilePath) }
-                                .filter { it.exists() }
-                                .forEach { it.delete() }
-                    }
-                }
-            })
-        })
-    }
-
-    fun query(id: Long, query: Query<RequestData>) {
-        FetchHelper.throwIfDisposed(this)
-        FetchHelper.throwIfQueryIsNull(query)
-
-        actionProcessor.queueAction(Runnable{
-            databaseManager.executeTransaction(object : Transaction {
-                override fun onPreExecute() {
-
-                }
-
-                override fun onExecute(database: Database) {
-                    val requestData = database.query(id)
-                    postOnMain(Runnable { query.onResult(requestData) })
-                }
-
-                override fun onPostExecute() {
-
-                }
-            })
-        })
-    }
-
-    fun query(ids: List<Long>, query: Query<List<RequestData>>) {
-        FetchHelper.throwIfDisposed(this)
-        FetchHelper.throwIfQueryIsNull(query)
-        FetchHelper.throwIfIdListIsNull(ids)
-
-        actionProcessor.queueAction(Runnable{
-            databaseManager.executeTransaction(object : Transaction {
-
-                override fun onPreExecute() {
-
-                }
-
-                override fun onExecute(database: Database) {
-
-                    val results = database.query(FetchHelper.createIdArray(ids))
-                    postOnMain(Runnable { query.onResult(results) })
-                }
-
-                override fun onPostExecute() {
-
-                }
-            })
-        })
-    }
-
-    fun queryAll(query: Query<List<RequestData>>) {
-        FetchHelper.throwIfDisposed(this)
-        FetchHelper.throwIfQueryIsNull(query)
-
-        actionProcessor.queueAction(Runnable{
-            databaseManager.executeTransaction(object : Transaction {
-
-                override fun onPreExecute() {
-
-                }
-
-                override fun onExecute(database: Database) {
-                    val result = database.query()
-                    postOnMain(Runnable { query.onResult(result) })
-                }
-
-                override fun onPostExecute() {
-
-                }
-            })
-        })
-    }
-
-    @Suppress("unused")
-    fun queryByStatus(status: Status, query: Query<List<RequestData>>) {
-        FetchHelper.throwIfDisposed(this)
-        FetchHelper.throwIfQueryIsNull(query)
-        FetchHelper.throwIfStatusIsNull(status)
-
-        actionProcessor.queueAction(Runnable{
-            databaseManager.executeTransaction(object : Transaction {
-
-                override fun onPreExecute() {
-
-                }
-
-                override fun onExecute(database: Database) {
-                    val result = database.queryByStatus(status.value)
-                    postOnMain(Runnable { query.onResult(result) })
-                }
-
-                override fun onPostExecute() {
-
-                }
-            })
-        })
-    }
-
-    fun queryByStatus(statuses: Array<Status>, query: Query<List<RequestData>>) {
-        FetchHelper.throwIfDisposed(this)
-
-        actionProcessor.queueAction(Runnable{
-            databaseManager.executeTransaction(object : Transaction {
-
-                override fun onPreExecute() {
-
-                }
-
-                override fun onExecute(database: Database) {
-                    val values = statuses.map { it -> it.value }
-                    val result = database.queryByStatus(values)
-                    postOnMain(Runnable { query.onResult(result) })
-                }
-
-                override fun onPostExecute() {
-
-                }
-            })
-        })
-    }
-
-    @Suppress("unused")
-    fun queryByGroupId(groupId: String, query: Query<List<RequestData>>) {
-        FetchHelper.throwIfDisposed(this)
-        FetchHelper.throwIfQueryIsNull(query)
-        FetchHelper.throwIfGroupIDIsNull(groupId)
-
-        actionProcessor.queueAction(Runnable{
-            databaseManager.executeTransaction(object : Transaction {
-                override fun onPreExecute() {
-
-                }
-
-                override fun onExecute(database: Database) {
-                    val result = database.queryByGroupId(groupId)
-                    postOnMain(Runnable { query.onResult(result) })
-                }
-
-                override fun onPostExecute() {
-
-                }
-            })
-        })
-    }
-
-    @Suppress("unused")
-    fun queryContains(id: Long, query: Query<Boolean>) {
-        FetchHelper.throwIfDisposed(this)
-        FetchHelper.throwIfQueryIsNull(query)
-
-        actionProcessor.queueAction(Runnable{
-            databaseManager.executeTransaction(object : Transaction {
-
-                override fun onPreExecute() {
-
-                }
-
-                override fun onExecute(database: Database) {
-                    val found = database.contains(id)
-                    postOnMain(Runnable { query.onResult(found) })
-                }
-
-                override fun onPostExecute() {
-
-                }
-            })
-        })
-    }
-
-    @Synchronized
-    fun addListener(fetchListener: FetchListener) {
-        FetchHelper.throwIfDisposed(this)
-
-        if (!containsListener(fetchListener)) {
-            fetchListener.onAttach(this)
-            listeners.add(WeakReference(fetchListener))
-        }
-    }
-
-    private fun containsListener(fetchListener: FetchListener): Boolean {
-        val iterator = listeners.iterator()
-        var ref: WeakReference<FetchListener>
-
-        while (iterator.hasNext()) {
-            ref = iterator.next()
-
-            if (ref.get() != null && ref.get() === fetchListener) {
-                return true
-            }
-        }
-
-        return false
-    }
-
-    @Synchronized
-    fun removeListener(fetchListener: FetchListener) {
-        FetchHelper.throwIfDisposed(this)
-
-        val iterator = listeners.iterator()
-        var ref: WeakReference<FetchListener>
-
-        while (iterator.hasNext()) {
-            ref = iterator.next()
-
-            if (ref.get() != null && ref.get() === fetchListener) {
-                iterator.remove()
-                fetchListener.onDetach(this)
-                break
-            }
-        }
-    }
-
-    @Synchronized
-    fun removeListeners() {
-        FetchHelper.throwIfDisposed(this)
-
-        val iterator = listeners.iterator()
-        var ref: WeakReference<FetchListener>
-
-        while (iterator.hasNext()) {
-            ref = iterator.next()
-            iterator.remove()
-
-            ref.get()?.onDetach(this)
-        }
-    }
-
-    override fun toString(): String =
-            "Fetch(name='$name', isDisposed=$isDisposed)"
-
-    @Synchronized override fun dispose() {
-        if (!isDisposed) {
-            removeListeners()
-            executor.shutdown()
-            actionProcessor.clearQueue()
-            downloadManager.dispose()
-            databaseManager.dispose()
-            isDisposed = true
-            pool.remove(name)
-        }
-    }
-
-    companion object Factory {
-
-        private val pool = ConcurrentHashMap<String, Fetch>()
-
-        @JvmOverloads fun getDefaultInstance(context: Context, client: OkHttpClient = NetworkUtils.okHttpClient()): Fetch {
-
-            val defaultName = FetchHelper.defaultDatabaseName
-            if (pool.containsKey(defaultName)) {
-                return pool[defaultName]!!
-            }
-
-            val fetch = Fetch(context, defaultName, client)
-            pool.put(defaultName, fetch)
-            return fetch
-        }
-
-        @JvmOverloads fun create(name: String, context: Context, client: OkHttpClient? = null): Fetch {
-            if (pool.containsKey(name)) {
-                return pool[name]!!
-            }
-
-            val fetch = Fetch(context, name, client)
-            pool.put(name, fetch)
-            return fetch
-        }
-    }
+>>>>>>> master
 }

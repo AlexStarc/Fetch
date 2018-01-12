@@ -1,91 +1,48 @@
 package com.tonyodev.fetch2
 
-import android.os.Parcel
-import android.os.Parcelable
-import android.support.v4.util.ArrayMap
+/**
+ * Use this class to create a request that is used by Fetch to enqueue a download and
+ * begin the download process.
+ * */
+open class Request constructor(
+        /** The url where the file will be downloaded from.*/
+        val url: String,
 
-data class Request @JvmOverloads constructor(val url: String,
-                                             val absoluteFilePath: String,
-                                             val name: String = "",
-                                             private val headers: MutableMap<String, String> = ArrayMap()) : Parcelable {
+        /** The file eg(/files/download.txt) where the file will be
+         * downloaded to and saved on disk.*/
+        val file: String) : RequestInfo() {
 
-    val id: Long
-    var groupId: String
+    /** Used to identify a download.*/
+    val id: Int = (url.hashCode() * 31) + file.hashCode()
 
-    constructor(parcel: Parcel) : this(
-            parcel.readString(),
-            parcel.readString(),
-            parcel.readString(),
-            ArrayMap()) {
-        groupId = parcel.readString()
-
-        val keys = ArrayList<String>()
-        val values = ArrayList<String>()
-
-        parcel.readStringList(keys)
-        parcel.readStringList(values)
-
-        if (keys.size != values.size) {
-            throw IllegalStateException("Wrong parcel received for Request")
-        }
-
-        keys.forEachIndexed { index, key -> headers.put(key, values[index]) }
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+        other as Request
+        if (url != other.url) return false
+        if (file != other.file) return false
+        if (id != other.id) return false
+        if (groupId != other.groupId) return false
+        if (headers != other.headers) return false
+        if (priority != other.priority) return false
+        if (networkType != other.networkType) return false
+        return true
     }
 
-    init {
-        if (url.isEmpty()) {
-            throw IllegalArgumentException("Url cannot be null or empty")
-        }
-
-        if (absoluteFilePath.isEmpty()) {
-            throw IllegalArgumentException("AbsoluteFilePath cannot be null or empty")
-        }
-
-        this.groupId = ""
-        this.id = generateId()
+    override fun hashCode(): Int {
+        var result = url.hashCode()
+        result = 31 * result + file.hashCode()
+        result = 31 * result + id
+        result = 31 * result + groupId
+        result = 31 * result + headers.hashCode()
+        result = 31 * result + priority.hashCode()
+        result = 31 * result + networkType.hashCode()
+        return result
     }
 
-    @Suppress("unused")
-    fun putHeader(key: String, value: String?) {
-        var realValue = value
-
-        if (realValue == null) realValue = ""
-
-        headers.put(key, realValue)
+    override fun toString(): String {
+        return "Request(url='$url', file='$file', id=$id, groupId=$groupId, " +
+                "headers=$headers, priority=$priority, networkType=$networkType)"
     }
 
-    private fun generateId(): Long {
-        var code1: Long = 0
-        var code2: Long = 0
-
-        for (c in url.toCharArray()) {
-            code1 = code1 * 31 + c.toLong()
-        }
-
-        for (c in absoluteFilePath.toCharArray()) {
-            code2 = code2 * 31 + c.toLong()
-        }
-
-        return Math.abs(code1 + code2)
-    }
-
-    override fun toString(): String = "{\"url\":\"$url\",\"absolutePath\":$absoluteFilePath\"}"
-
-    override fun writeToParcel(parcel: Parcel, flags: Int) {
-        parcel.writeString(url)
-        parcel.writeString(absoluteFilePath)
-        parcel.writeString(name)
-
-        parcel.writeString(groupId)
-        parcel.writeStringList(ArrayList(headers.keys))
-        parcel.writeStringList(ArrayList(headers.values))
-    }
-
-    override fun describeContents(): Int = 0
-
-    companion object CREATOR : Parcelable.Creator<Request> {
-        override fun createFromParcel(parcel: Parcel): Request = Request(parcel)
-
-        override fun newArray(size: Int): Array<Request?> = arrayOfNulls(size)
-    }
 }
