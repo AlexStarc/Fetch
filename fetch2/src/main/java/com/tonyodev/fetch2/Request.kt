@@ -7,7 +7,7 @@ import android.support.v4.util.ArrayMap
 data class Request @JvmOverloads constructor(val url: String,
                                              val absoluteFilePath: String,
                                              val name: String = "",
-                                             val headers: MutableMap<String, String> = ArrayMap()) : Parcelable {
+                                             private val headers: MutableMap<String, String> = ArrayMap()) : Parcelable {
 
     val id: Long
     var groupId: String
@@ -45,6 +45,7 @@ data class Request @JvmOverloads constructor(val url: String,
         this.id = generateId()
     }
 
+    @Suppress("unused")
     fun putHeader(key: String, value: String?) {
         var realValue = value
 
