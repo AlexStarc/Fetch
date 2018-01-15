@@ -58,4 +58,5 @@ open class RequestInfo {
         return "RequestInfo(groupId=$groupId, headers=$headers, " +
                 "priority=$priority, networkType=$networkType)"
     }
+
 }

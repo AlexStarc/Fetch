@@ -299,5 +299,4 @@ interface Fetch {
 
     }
 
->>>>>>> master
 }

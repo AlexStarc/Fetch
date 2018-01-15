@@ -1,1 +1,5 @@
-include ':sampleApp', ":fetch2", ":fetch2rx", ":fetch2downloaders", ":fetchmigrator"
+include ":sampleApp"
+include ":fetch2"
+include ":fetch2rx"
+include ":fetch2downloaders"
+include ":fetchmigrator"
