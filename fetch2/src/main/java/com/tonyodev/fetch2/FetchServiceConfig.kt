@@ -28,8 +28,10 @@ class FetchServiceConfig(private var context: Context) {
         notificationChannelId = ""
     }
 
+    @SuppressLint("ApplySharedPref")
+    @Suppress("unused")
     @Synchronized
-    fun flash() {
+    fun flash(force: Boolean = false) {
         val prefsEditor = context.getSharedPreferences(CONFIG_PREFS_NAME, Context.MODE_PRIVATE).edit()
 
         prefsEditor.putBoolean(KEY_NOTIFICATION_ENABLED, notificationEnabled)
@@ -40,7 +42,11 @@ class FetchServiceConfig(private var context: Context) {
         prefsEditor.putString(KEY_NOTIFICATION_CHANNEL_DESCRIPTION, notificationChannelDescription)
         prefsEditor.putInt(KEY_NOTIFICATION_SMALL_ICON_RES_ID, notificationSmallIconResId)
 
-        prefsEditor.apply()
+        if (force) {
+            prefsEditor.commit()
+        } else {
+            prefsEditor.apply()
+        }
     }
 
     companion object {

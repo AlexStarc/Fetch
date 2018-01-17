@@ -25,11 +25,11 @@ open class FileDownloaderImpl(val initialDownload: Download,
     @Volatile
     override var completedDownload = false
     override var delegate: FileDownloader.Delegate? = null
-    var totalInternal: Long = 0
-    var downloadedInternal: Long = 0
-    var estimatedTimeRemainingInMillisecondsInternal: Long = -1
-    var downloadInfoInternal = initialDownload.toDownloadInfo()
-    var averageDownloadedBytesPerSecondInternal = 0.0
+    private var totalInternal: Long = 0
+    private var downloadedInternal: Long = 0
+    private var estimatedTimeRemainingInMillisecondsInternal: Long = -1
+    private var downloadInfoInternal = initialDownload.toDownloadInfo()
+    private var averageDownloadedBytesPerSecondInternal = 0.0
     private val movingAverageCalculatorInternal = AverageCalculator(5)
 
     override val download: Download

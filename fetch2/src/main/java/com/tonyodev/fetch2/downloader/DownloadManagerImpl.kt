@@ -4,6 +4,7 @@ import com.tonyodev.fetch2.Download
 import com.tonyodev.fetch2.Downloader
 import com.tonyodev.fetch2.Logger
 import com.tonyodev.fetch2.exception.FetchImplementationException
+import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 open class DownloadManagerImpl(val downloader: Downloader,
@@ -12,8 +13,8 @@ open class DownloadManagerImpl(val downloader: Downloader,
                                val downloadBufferSizeBytes: Int,
                                val logger: Logger) : DownloadManager {
 
-    val lock = Object()
-    open val executorInternal = Executors.newFixedThreadPool(concurrentLimit)
+    private val lock = Object()
+    open val executorInternal: ExecutorService = Executors.newFixedThreadPool(concurrentLimit)
     open val currentDownloadsMapInternal = hashMapOf<Int, FileDownloader>()
     override var delegate: DownloadManager.Delegate? = null
     @Volatile

@@ -11,6 +11,7 @@ fun Request.toDownloadInfo(): DownloadInfo {
     downloadInfo.id = id
     downloadInfo.url = url
     downloadInfo.file = file
+    downloadInfo.name = name
     downloadInfo.priority = priority
     downloadInfo.headers = headers
     downloadInfo.group = groupId
@@ -25,6 +26,7 @@ fun Download.toDownloadInfo(): DownloadInfo {
     val downloadInfo = DownloadInfo()
     downloadInfo.id = id
     downloadInfo.namespace = namespace
+    downloadInfo.name = name
     downloadInfo.url = url
     downloadInfo.file = file
     downloadInfo.group = group

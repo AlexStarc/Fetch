@@ -2,7 +2,7 @@
 
 buildscript {
 
-    ext.kotlin_version = '1.2.10'
+    ext.kotlin_version = '1.2.20'
     ext.okhttp_version = '3.9.1'
     ext.android_support_version = '27.0.2'
     ext.constraint_layout_version = "1.1.0-beta4"

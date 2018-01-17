@@ -79,23 +79,6 @@ class DownloadInfo() : Download, Parcelable {
             return request
         }
 
-    constructor(download: Download) : this() {
-        id = download.id
-        namespace = download.namespace
-        name = download.name
-        url = download.url
-        file = download.file
-        group = download.group
-        priority = download.priority
-        headers = download.headers.toMutableMap()
-        downloaded = download.downloaded
-        total = download.total
-        status = download.status
-        error = download.error
-        networkType = download.networkType
-        created = download.created
-    }
-
     constructor(parcel: Parcel) : this() {
         id = parcel.readInt()
         namespace = parcel.readString()
@@ -115,7 +98,7 @@ class DownloadInfo() : Download, Parcelable {
             throw IllegalStateException("Wrong parcel received for Request")
         }
 
-        keys.forEachIndexed { index, key -> headers.put(key, values[index]) }
+        keys.forEachIndexed { index, key -> headers[key] = values[index] }
 
         downloaded = parcel.readLong()
         total = parcel.readLong()

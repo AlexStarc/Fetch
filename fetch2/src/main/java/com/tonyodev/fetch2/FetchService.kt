@@ -19,6 +19,7 @@ import android.support.v4.content.LocalBroadcastManager
 import android.util.Log
 import com.tonyodev.fetch2.database.DownloadInfo
 import com.tonyodev.fetch2.provider.NetworkProvider
+import com.tonyodev.fetch2.util.toDownloadInfo
 
 /**
  * Service class to provide ability to launch downloads in the service,
@@ -51,9 +52,15 @@ class FetchService: Service(), FetchListener {
                 if (BuildConfig.DEBUG) Log.d(TAG, "No running downloads, stop self")
                 stopSelf()
             } else {
-                if (BuildConfig.DEBUG) Log.d(TAG, "There's " + t.size + " downloads running")
-                refreshNotification(t)
+                if (BuildConfig.DEBUG) Log.d(TAG, "There's ${t.size} downloads running")
             }
+        }
+    }
+
+    private val notificationCheckQuery: Func<List<Download>> = object: Func<List<Download>> {
+        override fun call(t: List<Download>) {
+            if (BuildConfig.DEBUG) Log.d(TAG, "There's ${t.size} downloads running")
+            refreshNotification(t)
         }
     }
 
@@ -266,7 +273,7 @@ class FetchService: Service(), FetchListener {
     private fun broadcastResult(download: Download) {
         val intent = Intent(INTENT_ACTION_RESULT)
 
-        intent.putExtra(DOWNLOADINFO_EXTRA, DownloadInfo(download))
+        intent.putExtra(DOWNLOADINFO_EXTRA, download.toDownloadInfo())
         intent.`package` = this.packageName
         sendBroadcast(intent)
     }
@@ -274,7 +281,7 @@ class FetchService: Service(), FetchListener {
     private fun broadcastQueued(download: Download) {
         val intent = Intent(INTENT_ACTION_QUERY)
 
-        intent.putExtra(DOWNLOADINFO_EXTRA, DownloadInfo(download))
+        intent.putExtra(DOWNLOADINFO_EXTRA, download.toDownloadInfo())
         intent.`package` = this.packageName
         sendBroadcast(intent)
     }
@@ -282,7 +289,7 @@ class FetchService: Service(), FetchListener {
     private fun broadcastLocalProgress(download: Download, etaInMilliSeconds: Long, downloadedBytesPerSecond: Long) {
         val intent = Intent(INTENT_ACTION_PROGRESS)
 
-        intent.putExtra(DOWNLOADINFO_EXTRA, DownloadInfo(download))
+        intent.putExtra(DOWNLOADINFO_EXTRA, download.toDownloadInfo())
         intent.putExtra(DOWNLOAD_ETA_MS_EXTRA, etaInMilliSeconds)
         intent.putExtra(DOWNLOAD_BYTES_PER_SEC, downloadedBytesPerSecond)
         intent.`package` = this.packageName
@@ -395,9 +402,21 @@ class FetchService: Service(), FetchListener {
         }
     }
 
+    private val notificationCheckRunnable: Runnable = Runnable {
+        if (!fetch.isClosed) {
+            fetch.getDownloadsWithStatus(arrayOf(Status.DOWNLOADING, Status.QUEUED), notificationCheckQuery)
+        }
+    }
+
     private fun checkStopNeeded() {
         handler.removeCallbacks(stopCheckRunnable)
         handler.postDelayed(stopCheckRunnable, SHUTDOWN_WAIT_TIMEOUT)
+        refreshNotification()
+    }
+
+    private fun refreshNotification() {
+        handler.removeCallbacks(notificationCheckRunnable)
+        handler.post(notificationCheckRunnable)
     }
 
     @Suppress("unused")
