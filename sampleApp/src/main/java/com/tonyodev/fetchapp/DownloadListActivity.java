@@ -29,9 +29,9 @@ import java.util.List;
 
 public class DownloadListActivity extends AppCompatActivity implements ActionListener {
 
-    private static final int STORAGE_PERMISSION_CODE = 200;
-    private static final long UNKNOWN_REMAINING_TIME = -1;
-    private static final long UNKNOWN_DOWNLOADED_BYTES_PER_SECOND = 0;
+    public static final int STORAGE_PERMISSION_CODE = 200;
+    public static final long UNKNOWN_REMAINING_TIME = -1;
+    public static final long UNKNOWN_DOWNLOADED_BYTES_PER_SECOND = 0;
 
     private View mainView;
     private FileAdapter fileAdapter;
@@ -48,8 +48,8 @@ public class DownloadListActivity extends AppCompatActivity implements ActionLis
     }
 
     private void setUpViews() {
-        final SwitchCompat networkSwitch = (SwitchCompat) findViewById(R.id.networkSwitch);
-        final RecyclerView recyclerView = (RecyclerView) findViewById(R.id.recyclerView);
+        final SwitchCompat networkSwitch = findViewById(R.id.networkSwitch);
+        final RecyclerView recyclerView = findViewById(R.id.recyclerView);
         mainView = findViewById(R.id.activity_main);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 

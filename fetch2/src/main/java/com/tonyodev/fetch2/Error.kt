@@ -79,4 +79,5 @@ enum class Error constructor(val value: Int) {
         }
 
     }
+
 }

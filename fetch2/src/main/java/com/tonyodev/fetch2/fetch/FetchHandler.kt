@@ -17,10 +17,12 @@ interface FetchHandler : Closeable {
     fun enqueue(requests: List<Request>): List<Download>
     fun pause(ids: IntArray): List<Download>
     fun pausedGroup(id: Int): List<Download>
+    fun pauseAll(): List<Download>
     fun freeze()
     fun unfreeze()
     fun resume(ids: IntArray): List<Download>
     fun resumeGroup(id: Int): List<Download>
+    fun resumeAll(): List<Download>
     fun remove(ids: IntArray): List<Download>
     fun removeGroup(id: Int): List<Download>
     fun removeAll(): List<Download>
@@ -37,6 +39,7 @@ interface FetchHandler : Closeable {
     fun getDownloads(idList: List<Int>): List<Download>
     fun getDownloadsInGroup(id: Int): List<Download>
     fun getDownloadsWithStatus(status: Status): List<Download>
+    fun getDownloadsWithStatus(statuses: Array<Status>): List<Download>
     fun getDownloadsInGroupWithStatus(groupId: Int, status: Status): List<Download>
     fun setGlobalNetworkType(networkType: NetworkType)
     fun enableLogging(enabled: Boolean)

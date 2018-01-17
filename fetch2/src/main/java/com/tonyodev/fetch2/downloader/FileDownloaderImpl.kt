@@ -30,7 +30,7 @@ open class FileDownloaderImpl(val initialDownload: Download,
     var estimatedTimeRemainingInMillisecondsInternal: Long = -1
     var downloadInfoInternal = initialDownload.toDownloadInfo()
     var averageDownloadedBytesPerSecondInternal = 0.0
-    val movingAverageCalculatorInternal = AverageCalculator(5)
+    private val movingAverageCalculatorInternal = AverageCalculator(5)
 
     override val download: Download
         get () {
@@ -203,7 +203,7 @@ open class FileDownloaderImpl(val initialDownload: Download,
         return Downloader.Request(initialDownload.url, headers)
     }
 
-    fun getAverageDownloadedBytesPerSecond(): Long {
+    private fun getAverageDownloadedBytesPerSecond(): Long {
         if (averageDownloadedBytesPerSecondInternal < 1) {
             return 0L
         }

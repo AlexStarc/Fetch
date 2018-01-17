@@ -66,6 +66,13 @@ interface Fetch {
      * */
     fun pauseGroup(id: Int)
 
+    /**
+     * Pause all downloads associated by this fetch.
+     *
+     * @throws FetchException if this instance of Fetch has been closed.
+     * */
+    fun pauseAll()
+
     /** Pauses all currently downloading items, and pauses all download processing fetch operations.
      *  Use this method when you do not want Fetch to keep processing downloads
      *  but do not want to release the instance of Fetch. However, you are still able to query
@@ -82,7 +89,14 @@ interface Fetch {
     fun resume(vararg ids: Int)
 
     /**
-     * Resume all paused downloads within the specified group.
+     * Resume all paused downloads associated the specified group.
+     *
+     * @throws FetchException if this instance of Fetch has been closed.
+     * */
+    fun resumeAll()
+
+    /**
+     * Resume all downloads within the specified group.
      * @param id specified group id.
      * @throws FetchException if this instance of Fetch has been closed.
      * */
@@ -222,6 +236,15 @@ interface Fetch {
      * @throws FetchException if this instance of Fetch has been closed.
      * */
     fun getDownloadsWithStatus(status: Status, func: Func<List<Download>>)
+
+    /**
+     * Gets all downloads with a specific status.
+     * @see com.tonyodev.fetch2.Status
+     * @param statuses Statuses to query.
+     * @param func Callback that the results will be returned on.
+     * @throws FetchException if this instance of Fetch has been closed.
+     * */
+    fun getDownloadsWithStatus(statuses: Array<Status>, func: Func<List<Download>>)
 
     /**
      * Gets all downloads in a specific group with a specific status.

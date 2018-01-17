@@ -36,4 +36,11 @@
     <string name="download_speed_bytes">%1$d B/s</string>
     <string name="download_speed_kb">%1$s KB/s</string>
     <string name="download_speed_mb">%1$s MB/s</string>
+
+    <string name="service_samples">Service Downloads Demos</string>
+    <string name="service_single_download_demo">Service Single Download Demo</string>
+    <string name="service_download_list_demo">Service Download List Demo</string>
+    <string name="service_game_file_download_demo">Service Game File Download Demo</string>
+    <string name="multi_enqueue">Multi Enqueue Demo</string>
+    <string name="service_multi_enqueue">Service Multi Enqueue Demo</string>
 </resources>

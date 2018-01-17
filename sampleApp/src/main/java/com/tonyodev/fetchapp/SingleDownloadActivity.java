@@ -43,10 +43,10 @@ public class SingleDownloadActivity extends AppCompatActivity implements FetchLi
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_single_download);
         mainView = findViewById(R.id.activity_single_download);
-        progressTextView = (TextView) findViewById(R.id.progressTextView);
-        titleTextView = (TextView) findViewById(R.id.titleTextView);
-        etaTextView = (TextView) findViewById(R.id.etaTextView);
-        downloadSpeedTextView = (TextView) findViewById(R.id.downloadSpeedTextView);
+        progressTextView = findViewById(R.id.progressTextView);
+        titleTextView = findViewById(R.id.titleTextView);
+        etaTextView = findViewById(R.id.etaTextView);
+        downloadSpeedTextView = findViewById(R.id.downloadSpeedTextView);
         fetch = ((App) getApplication()).getFetch();
         fetch.deleteAll();
         checkStoragePermission();

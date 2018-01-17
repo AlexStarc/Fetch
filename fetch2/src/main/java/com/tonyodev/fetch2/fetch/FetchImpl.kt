@@ -15,7 +15,6 @@ open class FetchImpl constructor(override val namespace: String,
                                  val fetchHandler: FetchHandler,
                                  val fetchListenerProvider: ListenerProvider,
                                  val logger: Logger) : Fetch {
-
     val lock = Object()
     override val isClosed: Boolean
         get() = fetchHandler.isClosed
@@ -72,7 +71,7 @@ open class FetchImpl constructor(override val namespace: String,
                         }
                     }
                 } catch (e: Exception) {
-                    logger.e("Failed to enqueue list $requests")
+                    logger.e("Failed to enqueue list $requests because $e")
                     val error = getErrorFromMessage(e.message)
                     if (func2 != null) {
                         uiHandler.post {
@@ -110,6 +109,25 @@ open class FetchImpl constructor(override val namespace: String,
             handler.post {
                 try {
                     val downloads = fetchHandler.pausedGroup(id)
+                    uiHandler.post {
+                        downloads.forEach {
+                            logger.d("Paused download $it")
+                            fetchListenerProvider.mainListener.onPaused(it)
+                        }
+                    }
+                } catch (e: FetchException) {
+                    logger.e("Fetch with namespace $namespace error", e)
+                }
+            }
+        }
+    }
+
+    override fun pauseAll() {
+        synchronized(lock) {
+            fetchHandler.throwExceptionIfClosed()
+            handler.post {
+                try {
+                    val downloads = fetchHandler.pauseAll()
                     uiHandler.post {
                         downloads.forEach {
                             logger.d("Paused download $it")
@@ -174,6 +192,25 @@ open class FetchImpl constructor(override val namespace: String,
             handler.post {
                 try {
                     val downloads = fetchHandler.resumeGroup(id)
+                    uiHandler.post {
+                        downloads.forEach {
+                            logger.d("Resumed download $it")
+                            fetchListenerProvider.mainListener.onResumed(it)
+                        }
+                    }
+                } catch (e: FetchException) {
+                    logger.e("Fetch with namespace $namespace error", e)
+                }
+            }
+        }
+    }
+
+    override fun resumeAll() {
+        synchronized(lock) {
+            fetchHandler.throwExceptionIfClosed()
+            handler.post {
+                try {
+                    val downloads = fetchHandler.resumeAll()
                     uiHandler.post {
                         downloads.forEach {
                             logger.d("Resumed download $it")
@@ -478,6 +515,22 @@ open class FetchImpl constructor(override val namespace: String,
             handler.post {
                 try {
                     val downloads = fetchHandler.getDownloadsWithStatus(status)
+                    uiHandler.post {
+                        func.call(downloads)
+                    }
+                } catch (e: FetchException) {
+                    logger.e("Fetch with namespace $namespace error", e)
+                }
+            }
+        }
+    }
+
+    override fun getDownloadsWithStatus(statuses: Array<Status>, func: Func<List<Download>>) {
+        synchronized(lock) {
+            fetchHandler.throwExceptionIfClosed()
+            handler.post {
+                try {
+                    val downloads = fetchHandler.getDownloadsWithStatus(statuses)
                     uiHandler.post {
                         func.call(downloads)
                     }

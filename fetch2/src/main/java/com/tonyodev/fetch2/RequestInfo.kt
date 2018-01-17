@@ -1,5 +1,7 @@
 package com.tonyodev.fetch2
 
+import android.os.Parcel
+import android.os.Parcelable
 import com.tonyodev.fetch2.util.DEFAULT_GROUP_ID
 import com.tonyodev.fetch2.util.defaultNetworkType
 import com.tonyodev.fetch2.util.defaultPriority
@@ -10,7 +12,7 @@ import com.tonyodev.fetch2.util.defaultPriority
  * existing download. Be sure to update all the fields in this class with
  * the proper values.
  * */
-open class RequestInfo {
+open class RequestInfo() : Parcelable {
 
     /** The group id this download belongs to.*/
     var groupId: Int = DEFAULT_GROUP_ID
@@ -57,6 +59,47 @@ open class RequestInfo {
     override fun toString(): String {
         return "RequestInfo(groupId=$groupId, headers=$headers, " +
                 "priority=$priority, networkType=$networkType)"
+    }
+
+    constructor(parcel: Parcel) : this() {
+        groupId = parcel.readInt()
+
+        val keys = ArrayList<String>()
+        val values = ArrayList<String>()
+
+        parcel.readStringList(keys)
+        parcel.readStringList(values)
+
+        if (keys.size != values.size) {
+            throw IllegalStateException("Wrong parcel received for Request")
+        }
+
+        keys.forEachIndexed { index, key -> headers.put(key, values[index]) }
+
+        priority = Priority.valueOf(parcel.readInt())
+        networkType = NetworkType.valueOf(parcel.readInt())
+    }
+
+    override fun writeToParcel(parcel: Parcel, flags: Int) {
+        parcel.writeInt(groupId)
+        parcel.writeStringList(ArrayList(headers.keys))
+        parcel.writeStringList(ArrayList(headers.values))
+        parcel.writeInt(priority.value)
+        parcel.writeInt(networkType.value)
+    }
+
+    override fun describeContents(): Int {
+        return 0
+    }
+
+    companion object CREATOR : Parcelable.Creator<RequestInfo> {
+        override fun createFromParcel(parcel: Parcel): RequestInfo {
+            return RequestInfo(parcel)
+        }
+
+        override fun newArray(size: Int): Array<RequestInfo?> {
+            return arrayOfNulls(size)
+        }
     }
 
 }

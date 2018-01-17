@@ -6,15 +6,12 @@ import android.database.sqlite.SQLiteException
 import com.tonyodev.fetch2.Logger
 import com.tonyodev.fetch2.Status
 import com.tonyodev.fetch2.exception.FetchImplementationException
-import android.arch.persistence.room.RoomMasterTable.TABLE_NAME
-
 
 open class DatabaseManagerImpl constructor(context: Context,
                                            val namespace: String,
                                            override val isMemoryDatabase: Boolean,
                                            override val logger: Logger) : DatabaseManager {
-
-    val lock = Object()
+    private val lock = Object()
 
     @Volatile
     private var closed = false
@@ -138,6 +135,13 @@ open class DatabaseManagerImpl constructor(context: Context,
         synchronized(lock) {
             throwExceptionIfClosed()
             return requestDatabaseInternal.requestDao().getByStatus(status)
+        }
+    }
+
+    override fun getByStatus(statuses: Array<Status>): List<DownloadInfo> {
+        synchronized(lock) {
+            throwExceptionIfClosed()
+            return requestDatabaseInternal.requestDao().getByStatus(statuses)
         }
     }
 

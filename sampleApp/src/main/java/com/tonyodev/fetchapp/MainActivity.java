@@ -12,6 +12,10 @@ import android.view.View;
 import android.widget.Toast;
 
 import com.tonyodev.fetch2.Fetch;
+import com.tonyodev.fetchapp.service.ServiceDownloadListActivity;
+import com.tonyodev.fetchapp.service.ServiceGameFilesActivity;
+import com.tonyodev.fetchapp.service.ServiceMultiEnqueueActivity;
+import com.tonyodev.fetchapp.service.ServiceSingleDownloadActivity;
 
 import java.io.File;
 
@@ -76,6 +80,42 @@ public class MainActivity extends AppCompatActivity {
                 } else {
                     deleteDownloadedFiles();
                 }
+            }
+        });
+
+        findViewById(R.id.serviceMultiEnqueueButton).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                Intent intent = new Intent(MainActivity.this, ServiceMultiEnqueueActivity.class);
+                MainActivity.this.startActivity(intent);
+            }
+        });
+
+        findViewById(R.id.serviceGameFilesButton).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                Intent intent = new Intent(MainActivity.this, ServiceGameFilesActivity.class);
+                MainActivity.this.startActivity(intent);
+            }
+        });
+
+        findViewById(R.id.serviceDownloadListButton).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                Intent intent = new Intent(MainActivity.this, ServiceDownloadListActivity.class);
+                MainActivity.this.startActivity(intent);
+            }
+        });
+
+        findViewById(R.id.serviceSingleDemoButton).setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+
+                Intent intent = new Intent(MainActivity.this, ServiceSingleDownloadActivity.class);
+                MainActivity.this.startActivity(intent);
             }
         });
     }

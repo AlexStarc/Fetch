@@ -18,6 +18,7 @@ abstract class DownloadDatabase : RoomDatabase() {
         const val TABLE_NAME = "requests"
         const val COLUMN_ID = "_id"
         const val COLUMN_NAMESPACE = "_namespace"
+        const val COLUMN_NAME = "_name"
         const val COLUMN_URL = "_url"
         const val COLUMN_FILE = "_file"
         const val COLUMN_GROUP = "_group"

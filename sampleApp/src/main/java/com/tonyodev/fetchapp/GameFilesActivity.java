@@ -33,9 +33,9 @@ import io.reactivex.functions.Consumer;
 
 public class GameFilesActivity extends AppCompatActivity {
 
-    private static final int STORAGE_PERMISSION_CODE = 400;
+    public static final int STORAGE_PERMISSION_CODE = 400;
 
-    private static final int groupId = 12;
+    public static final int groupId = 12;
 
     private View mainView;
     private TextView progressTextView;
@@ -58,10 +58,10 @@ public class GameFilesActivity extends AppCompatActivity {
     }
 
     private void setUpViews() {
-        progressTextView = (TextView) findViewById(R.id.progressTextView);
-        progressBar = (ProgressBar) findViewById(R.id.progressBar);
-        startButton = (Button) findViewById(R.id.startButton);
-        labelTextView = (TextView) findViewById(R.id.labelTextView);
+        progressTextView = findViewById(R.id.progressTextView);
+        progressBar = findViewById(R.id.progressBar);
+        startButton = findViewById(R.id.startButton);
+        labelTextView = findViewById(R.id.labelTextView);
         mainView = findViewById(R.id.activity_loading);
 
         //Start downloads
@@ -134,9 +134,7 @@ public class GameFilesActivity extends AppCompatActivity {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == STORAGE_PERMISSION_CODE || grantResults.length > 0
                 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-
             enqueueFiles();
-
         } else {
             Toast.makeText(this, R.string.permission_not_enabled, Toast.LENGTH_SHORT)
                     .show();

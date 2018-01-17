@@ -55,6 +55,41 @@
             android:layout_marginBottom="20dp"
             android:text="@string/delete_all_files" />
 
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:textAppearance="@android:style/TextAppearance.DeviceDefault.Large"
+            android:text="@string/service_samples"
+            android:paddingTop="20dp"
+            android:paddingBottom="10dp"/>
+
+        <Button
+            android:id="@+id/serviceSingleDemoButton"
+            android:text="@string/service_single_download_demo"
+            android:layout_marginBottom="20dp"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"/>
+
+        <Button
+            android:id="@+id/serviceDownloadListButton"
+            android:text="@string/service_download_list_demo"
+            android:layout_width="match_parent"
+            android:layout_marginBottom="20dp"
+            android:layout_height="wrap_content" />
+
+        <Button
+            android:id="@+id/serviceGameFilesButton"
+            android:text="@string/service_game_file_download_demo"
+            android:layout_width="match_parent"
+            android:layout_marginBottom="20dp"
+            android:layout_height="wrap_content" />
+
+        <Button
+            android:id="@+id/serviceMultiEnqueueButton"
+            android:text="@string/multi_enqueue"
+            android:layout_width="match_parent"
+            android:layout_marginBottom="20dp"
+            android:layout_height="wrap_content" />
     </LinearLayout>
 
 </ScrollView>

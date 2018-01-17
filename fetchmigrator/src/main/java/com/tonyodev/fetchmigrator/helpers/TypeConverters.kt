@@ -25,7 +25,7 @@ fun v1CursorToV2DownloadInfo(cursor: Cursor): DownloadInfo {
     downloadInfo.status = getStatusFromV1ForV2(status)
     downloadInfo.total = total
     downloadInfo.downloaded = downloaded
-    downloadInfo.headers = fromHeaderStringToMap(headers)
+    downloadInfo.headers = fromHeaderStringToMap(headers).toMutableMap()
     downloadInfo.priority = getPriorityFromV1ForV2(priority)
     downloadInfo.error = getErrorFromV1ForV2(error)
     downloadInfo.id = downloadInfo.request.id

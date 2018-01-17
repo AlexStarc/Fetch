@@ -1,22 +1,32 @@
 package com.tonyodev.fetch2
 
+import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
-import android.content.*
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.content.ComponentName
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
 import android.support.annotation.RequiresApi
 import android.support.v4.app.NotificationCompat
 import android.support.v4.content.LocalBroadcastManager
 import android.util.Log
+import com.tonyodev.fetch2.database.DownloadInfo
+import com.tonyodev.fetch2.provider.NetworkProvider
 
 /**
  * Service class to provide ability to launch downloads in the service,
  * so downloads can proceed in background with notifications
  */
-class FetchService: Service(), FetchListener, Callback {
+@SuppressLint("LogNotTimber")
+class FetchService: Service(), FetchListener {
+
     enum class Action {
         DOWNLOAD,
         CONNECTION_CHANGED,
@@ -32,15 +42,17 @@ class FetchService: Service(), FetchListener, Callback {
     private lateinit var fetch: Fetch
     private lateinit var fetchConfig: FetchServiceConfig
     private var notificationChannel: String = ""
+    private val networkProvider = NetworkProvider(this)
+    private lateinit var handler: Handler
 
-    private val runningStateQuery: Query<List<RequestData>> = object: Query<List<RequestData>> {
-        override fun onResult(result: List<RequestData>?) {
-            if (result == null || result.isEmpty()) {
+    private val runningStateQuery: Func<List<Download>> = object: Func<List<Download>> {
+        override fun call(t: List<Download>) {
+            if (t.isEmpty()) {
                 if (BuildConfig.DEBUG) Log.d(TAG, "No running downloads, stop self")
                 stopSelf()
             } else {
-                if (BuildConfig.DEBUG) Log.d(TAG, "There's " + result.size + " downloads running")
-                refreshNotification(result)
+                if (BuildConfig.DEBUG) Log.d(TAG, "There's " + t.size + " downloads running")
+                refreshNotification(t)
             }
         }
     }
@@ -50,13 +62,25 @@ class FetchService: Service(), FetchListener, Callback {
     override fun onCreate() {
         super.onCreate()
 
+        handler = Handler()
+
         fetchConfig = FetchServiceConfig(this)
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O || fetchConfig.notificationEnabled) {
             runAsForeground()
         }
 
-        fetch = Fetch.create(FETCH_NAME, this, null)
+        val fetchBuilder = Fetch.Builder(this, FETCH_NAME)
+
+        if (BuildConfig.DEBUG) {
+            fetchBuilder.enableLogging(true)
+        }
+
+        fetchBuilder.setDownloadBufferSize(DOWNLOAD_BUFFER_SIZE)
+                .setGlobalNetworkType(fetchConfig.network)
+                .setDownloadConcurrentLimit(DOWNLOAD_CONCURRENT_LIMIT)
+
+        fetch = fetchBuilder.build()
         fetch.addListener(this)
     }
 
@@ -103,6 +127,7 @@ class FetchService: Service(), FetchListener, Callback {
         super.onDestroy()
 
         fetch.removeListener(this)
+        fetch.close()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -126,11 +151,11 @@ class FetchService: Service(), FetchListener, Callback {
         when (action!!) {
             Action.CONNECTION_CHANGED -> handleConnectionChange()
             Action.DOWNLOAD -> downloadRequest(intent)
-            Action.PAUSE -> pauseRequest(intent.getLongExtra(REQUEST_ID_EXTRA, 0L))
-            Action.RESUME -> resumeRequest(intent.getLongExtra(REQUEST_ID_EXTRA, 0L))
-            Action.RETRY -> retryRequest(intent.getLongExtra(REQUEST_ID_EXTRA, 0L))
-            Action.REMOVE -> removeRequest(intent.getLongExtra(REQUEST_ID_EXTRA, 0L))
-            Action.CANCEL -> cancelRequest(intent.getLongExtra(REQUEST_ID_EXTRA, 0L))
+            Action.PAUSE -> pauseRequest(intent.getIntExtra(REQUEST_ID_EXTRA, 0))
+            Action.RESUME -> resumeRequest(intent.getIntExtra(REQUEST_ID_EXTRA, 0))
+            Action.RETRY -> retryRequest(intent.getIntExtra(REQUEST_ID_EXTRA, 0))
+            Action.REMOVE -> removeRequest(intent.getIntExtra(REQUEST_ID_EXTRA, 0))
+            Action.CANCEL -> cancelRequest(intent.getIntExtra(REQUEST_ID_EXTRA, 0))
             Action.CANCEL_ALL -> {
                 cancelAll()
             }
@@ -148,31 +173,31 @@ class FetchService: Service(), FetchListener, Callback {
         fetch.cancelAll()
     }
 
-    private fun cancelRequest(requestId: Long) {
+    private fun cancelRequest(requestId: Int) {
         if (requestId > 0) {
             fetch.cancel(requestId)
         }
     }
 
-    private fun removeRequest(requestId: Long) {
+    private fun removeRequest(requestId: Int) {
         if (requestId > 0) {
             fetch.remove(requestId)
         }
     }
 
-    private fun retryRequest(requestId: Long) {
+    private fun retryRequest(requestId: Int) {
         if (requestId > 0) {
             fetch.retry(requestId)
         }
     }
 
-    private fun pauseRequest(requestId: Long) {
+    private fun pauseRequest(requestId: Int) {
         if (requestId > 0) {
             fetch.pause(requestId)
         }
     }
 
-    private fun resumeRequest(requestId: Long) {
+    private fun resumeRequest(requestId: Int) {
         if (requestId > 0) {
             fetch.resume(requestId)
         }
@@ -180,14 +205,40 @@ class FetchService: Service(), FetchListener, Callback {
 
     private fun downloadRequest(intent: Intent) {
         if (intent.hasExtra(REQUEST_EXTRA)) {
-            fetch.download(intent.getParcelableExtra<Request>(REQUEST_EXTRA), this)
+            val request: Request = intent.getParcelableExtra(REQUEST_EXTRA)
+
+            fetch.enqueue(request, null, object : Func<Error> {
+                override fun call(t: Error) {
+                    broadcastResult(downloadInfoFromRequestError(request, t))
+                }
+            })
         } else if (intent.hasExtra(REQUEST_LIST_EXTRA)) {
             val requests: ArrayList<Request> = intent.getParcelableArrayListExtra<Request>(REQUEST_LIST_EXTRA)
 
             if (requests.isNotEmpty()) {
-                fetch.download(requests, this)
+                fetch.enqueue(requests, null, object : Func<Error> {
+                    override fun call(t: Error) {
+                        for (request in requests) {
+                            broadcastResult(downloadInfoFromRequestError(request, t))
+                        }
+                    }
+                })
             }
         }
+    }
+
+    private fun downloadInfoFromRequestError(request: Request, error: Error): Download {
+        val downloadInfo = DownloadInfo()
+
+        downloadInfo.error = error
+        downloadInfo.status = Status.FAILED
+        downloadInfo.id = request.id
+        downloadInfo.networkType = request.networkType
+        downloadInfo.priority = request.priority
+        downloadInfo.name = request.name
+        downloadInfo.file = request.file
+
+        return downloadInfo
     }
 
     private fun pauseAll() {
@@ -199,57 +250,46 @@ class FetchService: Service(), FetchListener, Callback {
     }
 
     private fun handleConnectionChange() {
-        if (!NetworkUtils.isNetworkAvailable(this)) {
+        if (!networkProvider.isNetworkAvailable()) {
             pauseAll()
         } else {
             fetchConfig = FetchServiceConfig(this)
 
-            when (fetchConfig.network) {
-                Network.ALL, Network.CELLULAR -> resumeAll()
-                Network.WIFI -> {
-                    if (NetworkUtils.isOnWiFi(this)) {
-                        resumeAll()
-                    } else {
-                        pauseAll()
-                    }
-                }
+            if (networkProvider.isOnAllowedNetwork(fetchConfig.network)) {
+                resumeAll()
+            } else {
+                pauseAll()
             }
         }
     }
 
-    private fun broadcastResult(id: Long, status: Status, progress: Int, downloadedBytes: Long, totalBytes: Long, error: Error = Error.NONE) {
+    private fun broadcastResult(download: Download) {
         val intent = Intent(INTENT_ACTION_RESULT)
 
-        intent.putExtra(RESULT_EXTRA, Result(id, status, progress, downloadedBytes, totalBytes, error))
+        intent.putExtra(DOWNLOADINFO_EXTRA, DownloadInfo(download))
         intent.`package` = this.packageName
         sendBroadcast(intent)
     }
 
-    private fun broadcastResult(request: Request, error: Error = Error.NONE) {
-        val intent = Intent(INTENT_ACTION_RESULT)
-
-        intent.putExtra(RESULT_EXTRA, Result(request.id, Status.ERROR, 0, 0, 0, error))
-        intent.`package` = this.packageName
-        sendBroadcast(intent)
-    }
-
-    private fun broadcastQueued(request: Request) {
+    private fun broadcastQueued(download: Download) {
         val intent = Intent(INTENT_ACTION_QUERY)
 
-        intent.putExtra(REQUEST_EXTRA, request)
+        intent.putExtra(DOWNLOADINFO_EXTRA, DownloadInfo(download))
         intent.`package` = this.packageName
         sendBroadcast(intent)
     }
 
-    private fun broadcastLocalProgress(id: Long, status: Status, progress: Int, downloadedBytes: Long, totalBytes: Long) {
+    private fun broadcastLocalProgress(download: Download, etaInMilliSeconds: Long, downloadedBytesPerSecond: Long) {
         val intent = Intent(INTENT_ACTION_PROGRESS)
 
-        intent.putExtra(RESULT_EXTRA, Result(id, status, progress, downloadedBytes, totalBytes))
+        intent.putExtra(DOWNLOADINFO_EXTRA, DownloadInfo(download))
+        intent.putExtra(DOWNLOAD_ETA_MS_EXTRA, etaInMilliSeconds)
+        intent.putExtra(DOWNLOAD_BYTES_PER_SEC, downloadedBytesPerSecond)
         intent.`package` = this.packageName
         LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
     }
 
-    private fun refreshNotification(result: List<RequestData>?) {
+    private fun refreshNotification(result: List<Download>?) {
         // Just show number of downloads or exact progress, if it's known
         val b = NotificationCompat.Builder(this, notificationChannel)
 
@@ -272,7 +312,7 @@ class FetchService: Service(), FetchListener, Callback {
 
         if (result != null) {
             for (data in result) {
-                if (data.totalBytes <= 0) {
+                if (data.total <= 0) {
                     progress = -1
                     break
                 }
@@ -296,63 +336,68 @@ class FetchService: Service(), FetchListener, Callback {
         notificationManager.notify(FOREGROUND_DOWNLOAD_SERVICE_ID, b.build())
     }
 
-    override fun onQueued(request: Request) {
-        if (BuildConfig.DEBUG) Log.d(TAG, "Request $request queued")
-        broadcastQueued(request)
+    override fun onQueued(download: Download) {
+        if (BuildConfig.DEBUG) Log.d(TAG, "Request $download queued")
+        broadcastQueued(download)
     }
 
-    override fun onComplete(id: Long, progress: Int, downloadedBytes: Long, totalBytes: Long) {
+    override fun onCompleted(download: Download) {
         checkStopNeeded()
-        if (BuildConfig.DEBUG) Log.d(TAG, "Request completed $id progress:$progress")
-        broadcastResult(id, Status.COMPLETED, progress, downloadedBytes, totalBytes)
+        if (BuildConfig.DEBUG) Log.d(TAG, "Request completed $download")
+        broadcastResult(download)
     }
 
-    override fun onAttach(fetch: Fetch) {
-        // nothing to do
-    }
-
-    override fun onFailure(request: Request, error: Error) {
+    override fun onError(download: Download) {
         checkStopNeeded()
-        if (BuildConfig.DEBUG) Log.d(TAG, "Request failed $request with $error")
-        broadcastResult(request, error)
+        if (BuildConfig.DEBUG) Log.d(TAG, "Request error $download")
+        broadcastResult(download)
     }
 
-    override fun onDetach(fetch: Fetch) {
-        if (BuildConfig.DEBUG) Log.d(TAG, "Listener detached")
-    }
-
-    override fun onError(id: Long, error: Error, progress: Int, downloadedBytes: Long, totalBytes: Long) {
+    override fun onProgress(download: Download, etaInMilliSeconds: Long, downloadedBytesPerSecond: Long) {
         checkStopNeeded()
-        if (BuildConfig.DEBUG) Log.d(TAG, "Request error $id progress:$progress with $error")
-        broadcastResult(id, Status.ERROR, progress, downloadedBytes, totalBytes, error)
+        if (BuildConfig.DEBUG) Log.d(TAG, "Request progress $download")
+        broadcastLocalProgress(download, etaInMilliSeconds, downloadedBytesPerSecond)
     }
 
-    override fun onProgress(id: Long, progress: Int, downloadedBytes: Long, totalBytes: Long) {
+    override fun onPaused(download: Download) {
         checkStopNeeded()
-        if (BuildConfig.DEBUG) Log.d(TAG, "Request progress $id progress:$progress ($downloadedBytes/$totalBytes)")
-        broadcastLocalProgress(id, Status.DOWNLOADING, progress, downloadedBytes, totalBytes)
+        if (BuildConfig.DEBUG) Log.d(TAG, "Request paused $download")
+        broadcastResult(download)
     }
 
-    override fun onPause(id: Long, progress: Int, downloadedBytes: Long, totalBytes: Long) {
+    override fun onResumed(download: Download) {
         checkStopNeeded()
-        if (BuildConfig.DEBUG) Log.d(TAG, "Request paused $id progress:$progress ($downloadedBytes/$totalBytes)")
-        broadcastResult(id, Status.PAUSED, progress, downloadedBytes, totalBytes)
+        if (BuildConfig.DEBUG) Log.d(TAG, "Request resumed $download")
+        broadcastResult(download)
     }
 
-    override fun onCancelled(id: Long, progress: Int, downloadedBytes: Long, totalBytes: Long) {
+    override fun onCancelled(download: Download) {
         checkStopNeeded()
-        if (BuildConfig.DEBUG) Log.d(TAG, "Request cancelled $id progress:$progress ($downloadedBytes/$totalBytes)")
-        broadcastResult(id, Status.CANCELLED, progress, downloadedBytes, totalBytes)
+        if (BuildConfig.DEBUG) Log.d(TAG, "Request cancelled $download")
+        broadcastResult(download)
     }
 
-    override fun onRemoved(id: Long, progress: Int, downloadedBytes: Long, totalBytes: Long) {
+    override fun onRemoved(download: Download) {
         checkStopNeeded()
-        if (BuildConfig.DEBUG) Log.d(TAG, "Request removed $id progress:$progress ($downloadedBytes/$totalBytes)")
-        broadcastResult(id, Status.REMOVED, progress, downloadedBytes, totalBytes)
+        if (BuildConfig.DEBUG) Log.d(TAG, "Request removed $download")
+        broadcastResult(download)
+    }
+
+    override fun onDeleted(download: Download) {
+        checkStopNeeded()
+        if (BuildConfig.DEBUG) Log.d(TAG, "Request deleted $download")
+        broadcastResult(download)
+    }
+
+    private val stopCheckRunnable: Runnable = Runnable {
+        if (!fetch.isClosed) {
+            fetch.getDownloadsWithStatus(arrayOf(Status.DOWNLOADING, Status.QUEUED, Status.NONE), runningStateQuery)
+        }
     }
 
     private fun checkStopNeeded() {
-        fetch.queryByStatus(arrayOf(Status.DOWNLOADING, Status.QUEUED), runningStateQuery)
+        handler.removeCallbacks(stopCheckRunnable)
+        handler.postDelayed(stopCheckRunnable, SHUTDOWN_WAIT_TIMEOUT)
     }
 
     @Suppress("unused")
@@ -364,6 +409,11 @@ class FetchService: Service(), FetchListener, Callback {
         private const val NOTIFICATION_CHANNEL_ID = "fetchservice.general"
         private val FOREGROUND_DOWNLOAD_SERVICE_ID = TAG.hashCode()
 
+        private const val DOWNLOAD_BUFFER_SIZE = 8192
+        private const val DOWNLOAD_CONCURRENT_LIMIT = 3
+
+        private const val SHUTDOWN_WAIT_TIMEOUT = 10000L
+
         const val ACTION_EXTRA = BuildConfig.APPLICATION_ID + ".action"
         const val REQUEST_EXTRA = BuildConfig.APPLICATION_ID + ".request"
         const val REQUEST_LIST_EXTRA = BuildConfig.APPLICATION_ID + ".requestList"
@@ -372,7 +422,9 @@ class FetchService: Service(), FetchListener, Callback {
         const val INTENT_ACTION_RESULT = BuildConfig.APPLICATION_ID + ".RESULT_ACTION"
         const val INTENT_ACTION_QUERY = BuildConfig.APPLICATION_ID + ".QUERY_ACTION"
         const val INTENT_ACTION_PROGRESS = BuildConfig.APPLICATION_ID + ".PROGRESS_ACTION"
-        const val RESULT_EXTRA = BuildConfig.APPLICATION_ID + ".result"
+        const val DOWNLOADINFO_EXTRA = BuildConfig.APPLICATION_ID + ".downloadinfo"
+        const val DOWNLOAD_ETA_MS_EXTRA = BuildConfig.APPLICATION_ID + ".download_eta_ms"
+        const val DOWNLOAD_BYTES_PER_SEC = BuildConfig.APPLICATION_ID + ".download_bytes_per_sec"
 
         /**
          * Adds request to execution and starts it
@@ -402,7 +454,7 @@ class FetchService: Service(), FetchListener, Callback {
          * Cancels request with supplied id
          */
         @JvmStatic
-        fun cancel(context: Context, id: Long) {
+        fun cancel(context: Context, id: Int) {
             launchWithActionWithId(context, Action.CANCEL, id)
         }
 
@@ -410,7 +462,7 @@ class FetchService: Service(), FetchListener, Callback {
          * Removes request with supplied id
          */
         @JvmStatic
-        fun remove(context: Context, id: Long) {
+        fun remove(context: Context, id: Int) {
             launchWithActionWithId(context, Action.REMOVE, id)
         }
 
@@ -418,7 +470,7 @@ class FetchService: Service(), FetchListener, Callback {
          * Pauses request with supplied id
          */
         @JvmStatic
-        fun pause(context: Context, id: Long) {
+        fun pause(context: Context, id: Int) {
             launchWithActionWithId(context, Action.PAUSE, id)
         }
 
@@ -426,7 +478,7 @@ class FetchService: Service(), FetchListener, Callback {
          * Resumes request with supplied id
          */
         @JvmStatic
-        fun resume(context: Context, id: Long) {
+        fun resume(context: Context, id: Int) {
             launchWithActionWithId(context, Action.RESUME, id)
         }
 
@@ -434,11 +486,11 @@ class FetchService: Service(), FetchListener, Callback {
          * Retries request with supplied id
          */
         @JvmStatic
-        fun retry(context: Context, id: Long) {
+        fun retry(context: Context, id: Int) {
             launchWithActionWithId(context, Action.RETRY, id)
         }
 
-        private fun launchWithActionWithId(context: Context, action: Action, id: Long) {
+        private fun launchWithActionWithId(context: Context, action: Action, id: Int) {
             val intent = createIntentWithAction(action)
 
             intent.putExtra(REQUEST_ID_EXTRA, id)

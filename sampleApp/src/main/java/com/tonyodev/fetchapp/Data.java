@@ -23,7 +23,7 @@ public final class Data {
 
     }
 
-    static List<Request> getFetchRequests() {
+    public static List<Request> getFetchRequests() {
         final List<Request> requests = new ArrayList<>();
 
         for (String sampleUrl : sampleUrls) {

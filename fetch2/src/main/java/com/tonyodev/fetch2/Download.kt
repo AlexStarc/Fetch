@@ -13,6 +13,9 @@ interface Download {
     /** The Fetch namespace this download belongs to.*/
     val namespace: String
 
+    /** The Fetch name for this download belongs to.*/
+    val name: String
+
     /** The url where the file will be downloaded from.*/
     val url: String
 

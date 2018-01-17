@@ -49,10 +49,10 @@ object FetchModulesBuilder {
         val uiHandler = Handler(Looper.getMainLooper())
         val handler: Handler
         val fetchListenerProvider: ListenerProvider
-        val downloadManager: DownloadManager
-        val databaseManager: DatabaseManager
-        val downloadInfoManagerDelegate: DownloadInfoManagerDelegate
-        val priorityQueueProcessor: PriorityQueueProcessor<Download>
+        private val downloadManager: DownloadManager
+        private val databaseManager: DatabaseManager
+        private val downloadInfoManagerDelegate: DownloadInfoManagerDelegate
+        private val priorityQueueProcessor: PriorityQueueProcessor<Download>
         val fetchHandler: FetchHandler
 
         init {

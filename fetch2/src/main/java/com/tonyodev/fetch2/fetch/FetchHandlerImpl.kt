@@ -21,6 +21,9 @@ open class FetchHandlerImpl(val namespace: String,
                             override val fetchListenerProvider: ListenerProvider,
                             val handler: Handler,
                             val logger: Logger) : FetchHandler {
+    override fun resumeAll(): List<Download> {
+        TODO("not implemented")
+    }
 
     @Volatile
     private var closed = false
@@ -91,6 +94,29 @@ open class FetchHandlerImpl(val namespace: String,
             }
         }
         downloadInfoList = databaseManager.getByGroup(id)
+        downloadInfoList.forEach {
+            if (canPauseDownload(it)) {
+                it.status = Status.PAUSED
+            }
+        }
+        return try {
+            databaseManager.update(downloadInfoList)
+            downloadInfoList
+        } catch (e: Exception) {
+            logger.e(FETCH_DATABASE_ERROR, e)
+            listOf()
+        }
+    }
+
+    override fun pauseAll(): List<Download> {
+        throwExceptionIfClosed()
+        var downloadInfoList = databaseManager.get()
+        downloadInfoList.forEach {
+            if (isDownloading(it.id)) {
+                cancelDownload(it.id)
+            }
+        }
+        downloadInfoList = databaseManager.get()
         downloadInfoList.forEach {
             if (canPauseDownload(it)) {
                 it.status = Status.PAUSED
@@ -407,6 +433,11 @@ open class FetchHandlerImpl(val namespace: String,
     override fun getDownloadsWithStatus(status: Status): List<Download> {
         throwExceptionIfClosed()
         return databaseManager.getByStatus(status)
+    }
+
+    override fun getDownloadsWithStatus(statuses: Array<Status>): List<Download> {
+        throwExceptionIfClosed()
+        return databaseManager.getByStatus(statuses)
     }
 
     override fun getDownloadsInGroupWithStatus(groupId: Int, status: Status): List<Download> {

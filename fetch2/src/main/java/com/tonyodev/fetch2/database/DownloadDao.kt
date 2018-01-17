@@ -41,6 +41,9 @@ interface DownloadDao {
     @Query("SELECT * FROM $TABLE_NAME WHERE _status = :status")
     fun getByStatus(status: Status): List<DownloadInfo>
 
+    @Query("SELECT * FROM $TABLE_NAME WHERE _status IN(:statuses)")
+    fun getByStatus(statuses: Array<Status>): List<DownloadInfo>
+
     @Query("SELECT * FROM $TABLE_NAME WHERE _group = :group")
     fun getByGroup(group: Int): List<DownloadInfo>
 

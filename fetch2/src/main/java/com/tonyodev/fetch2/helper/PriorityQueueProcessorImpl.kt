@@ -20,7 +20,7 @@ open class PriorityQueueProcessorImpl constructor(val handler: Handler,
                                                   val logger: Logger)
     : PriorityQueueProcessor<Download> {
 
-    val lock = Object()
+    private val lock = Object()
     @Volatile
     override var globalNetworkType = NetworkType.GLOBAL_OFF
     @Volatile
@@ -31,10 +31,10 @@ open class PriorityQueueProcessorImpl constructor(val handler: Handler,
     private var stopped = false
     override val isStopped: Boolean
         get() = stopped
-    val priorityComparatorInternal = DownloadPriorityComparator()
-    val priorityQueueInternal = PriorityQueue<Download>(16, priorityComparatorInternal)
+    private val priorityComparatorInternal = DownloadPriorityComparator()
+    private val priorityQueueInternal = PriorityQueue<Download>(16, priorityComparatorInternal)
 
-    val priorityQueueRunnableInternal = Runnable {
+    private val priorityQueueRunnableInternal = Runnable {
         val queue = getPriorityQueue()
         while (queue.isNotEmpty() && downloadManager.canAccommodateNewDownload()) {
             val download = queue.poll()

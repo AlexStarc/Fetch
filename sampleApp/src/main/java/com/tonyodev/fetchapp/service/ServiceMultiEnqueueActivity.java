@@ -1,29 +1,26 @@
-package com.tonyodev.fetch2sample.service;
+package com.tonyodev.fetchapp.service;
 
-import android.annotation.SuppressLint;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
+import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
-import android.widget.Toast;
+import android.view.View;
 
 import com.tonyodev.fetch2.AbstractFetchListener;
-import com.tonyodev.fetch2.Callback;
-import com.tonyodev.fetch2.Error;
-import com.tonyodev.fetch2.Fetch;
+import com.tonyodev.fetch2.Download;
 import com.tonyodev.fetch2.FetchListener;
 import com.tonyodev.fetch2.FetchService;
 import com.tonyodev.fetch2.Request;
-import com.tonyodev.fetch2sample.App;
-import com.tonyodev.fetch2sample.Data;
-import com.tonyodev.fetch2sample.R;
+import com.tonyodev.fetchapp.App;
+import com.tonyodev.fetchapp.Data;
+import com.tonyodev.fetchapp.R;
+
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Created by tonyofrancis on 1/29/17.
- */
+import timber.log.Timber;
 
 public class ServiceMultiEnqueueActivity extends AppCompatActivity {
 
@@ -31,8 +28,8 @@ public class ServiceMultiEnqueueActivity extends AppCompatActivity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_multi_enqueue);
-
-        List<Request> requests = new ArrayList<>();
+        final View mainView = findViewById(R.id.activity_main);
+        final List<Request> requests = new ArrayList<>();
 
         final String url = "https://www.notdownloadable.com/test.txt";
 
@@ -40,24 +37,22 @@ public class ServiceMultiEnqueueActivity extends AppCompatActivity {
 
         for(int x = 0; x < size; x++) {
 
-            String filePath = Data.getSaveDir()
+            final String filePath = Data.getSaveDir()
                     .concat("/multiTest/")
                     .concat("file")
                     .concat(""+(x+1))
                     .concat(".txt");
 
-            Request request = new Request(url,filePath);
+            final Request request = new Request(url,filePath);
             requests.add(request);
         }
 
-        for (Request request : requests) {
-            FetchService.remove(getApplicationContext(), request.getId());
-        }
-
+        FetchService.removeAll(getApplicationContext());
         FetchService.download(getApplicationContext(), requests);
 
-        Toast.makeText(this,"Enqueued " + size + " requests. Check Logcat for" +
-                "progress status",Toast.LENGTH_LONG).show();
+        Snackbar.make(mainView, "Enqueued " + size + " requests. Check Logcat for " +
+                "failed status", Snackbar.LENGTH_INDEFINITE)
+                .show();
     }
 
     @Override
@@ -73,16 +68,16 @@ public class ServiceMultiEnqueueActivity extends AppCompatActivity {
     }
 
     private final FetchListener listener = new AbstractFetchListener() {
-        @SuppressLint("LongLogTag")
         @Override
-        public void onProgress(long id, int progress, long downloadedBytes, long totalBytes) {
-            Log.i("ServiceMultiEnqueueActivity","Download id:" + id + " - progress:" + progress);
+        public void onProgress(@NotNull Download download, long etaInMilliSeconds,
+                long downloadedBytesPerSecond) {
+            Timber.i("Download id:" + download.getId() + " - progress:" + download.getProgress());
         }
 
-        @SuppressLint("LongLogTag")
         @Override
-        public void onError(long id, Error reason, int progress, long downloadedBytes, long totalBytes) {
-            Log.d("ServiceMultiEnqueueActivity","Download id:" + id + " - error:" + reason.toString());
+        public void onError(@NotNull Download download) {
+            Timber.tag("ServiceMultiEnqueue").d(
+                    "Download id:" + download.getId() + " - error:" + download.getError());
         }
     };
 }

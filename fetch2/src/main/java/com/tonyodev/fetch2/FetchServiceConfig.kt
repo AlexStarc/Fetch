@@ -13,13 +13,13 @@ class FetchServiceConfig(private var context: Context) {
     var notificationChannelDescription: String
     var notificationChannelId: String
     var notificationSmallIconResId: Int
-    var network = Network.ALL
+    var network = NetworkType.ALL
 
     init {
         val prefs = context.getSharedPreferences(CONFIG_PREFS_NAME, Context.MODE_PRIVATE)
         notificationEnabled = prefs.getBoolean(KEY_NOTIFICATION_ENABLED, true)
         notificationTitleResId = prefs.getInt(KEY_NOTIFICATION_TITLE_RES_ID, R.string.app_name)
-        network = Network.valueOf(prefs.getString(KEY_NETWORK, Network.ALL.name))
+        network = NetworkType.valueOf(prefs.getString(KEY_NETWORK, NetworkType.ALL.name))
         notificationChannelTitle = prefs.getString(KEY_NOTIFICATION_CHANNEL_TITLE,
                 context.getString(R.string.app_name))
         notificationChannelDescription = prefs.getString(KEY_NOTIFICATION_CHANNEL_DESCRIPTION,
